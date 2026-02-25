@@ -32,10 +32,12 @@ export function initTabs() {
 // ── Panel Show / Hide ───────────────────────────────────
 export function showPanel() {
   document.getElementById('profile-panel').classList.add('open');
+  document.getElementById('layer-panel')?.classList.add('shifted');
 }
 
 export function hidePanel() {
   document.getElementById('profile-panel').classList.remove('open');
+  document.getElementById('layer-panel')?.classList.remove('shifted');
 }
 
 // ── Set Loading State ───────────────────────────────────

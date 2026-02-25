@@ -152,7 +152,7 @@ function initMap() {
       const row = (icon, label, value) =>
         `<div class="quake-row"><span class="quake-row-label">${icon} ${label}</span><span class="quake-row-value">${value}</span></div>`;
 
-      new maplibregl.Popup({ offset: 12, maxWidth: '300px' })
+      new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup' })
         .setLngLat([coords[0], coords[1]])
         .setHTML(`
           <div class="quake-popup">
@@ -268,7 +268,7 @@ function initMap() {
         ? `<tr><td style="color:#94a3b8;padding:2px 8px 2px 0">${label}</td><td style="font-weight:600">${val}${unit}</td></tr>`
         : '';
 
-      new maplibregl.Popup({ offset: 12, maxWidth: '360px' })
+      new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup' })
         .setLngLat(coords)
         .setHTML(`
           <div class="buoy-popup">
@@ -297,13 +297,18 @@ function initMap() {
     });
 
     // Cluster click → zoom in
-    map.on('click', 'buoys-clusters', (e) => {
+    map.on('click', 'buoys-clusters', async (e) => {
+      e.originalEvent.stopPropagation();
       const features = map.queryRenderedFeatures(e.point, { layers: ['buoys-clusters'] });
+      if (!features.length) return;
       const clusterId = features[0].properties.cluster_id;
-      map.getSource('buoys').getClusterExpansionZoom(clusterId, (err, zoom) => {
-        if (err) return;
-        map.easeTo({ center: features[0].geometry.coordinates, zoom: zoom });
-      });
+      const coords = features[0].geometry.coordinates;
+      try {
+        const zoom = await map.getSource('buoys').getClusterExpansionZoom(clusterId);
+        map.easeTo({ center: coords, zoom: zoom + 1 });
+      } catch (err) {
+        console.error('Cluster zoom error:', err);
+      }
     });
 
     // Cursor changes for buoy layers
@@ -319,6 +324,16 @@ function initMap() {
 
 // ── Handle Map Click ────────────────────────────────────
 async function handleMapClick(e) {
+  // Skip if click hit an overlay feature (earthquake, buoy, etc.)
+  if (e.point) {
+    const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count'];
+    const activeLayers = overlayLayers.filter(id => { try { return !!map.getLayer(id); } catch { return false; } });
+    if (activeLayers.length > 0) {
+      const hits = map.queryRenderedFeatures(e.point, { layers: activeLayers });
+      if (hits.length > 0) return;
+    }
+  }
+
   const { lat, lng } = e.lngLat;
   currentLat = lat;
   currentLng = lng;
