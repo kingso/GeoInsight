@@ -25,14 +25,6 @@ let terminatorInterval = null;
 let sunLinesVisible = false;
 
 // ── Weather / Radar State ───────────────────────────────
-const OWM_KEY = '7d0d8b3bb9ede8865ed56119ad86159a';
-const OWM_LAYERS = {
-  clouds:  'clouds_new',
-  precip:  'precipitation_new',
-  temp:    'temp_new',
-  wind:    'wind_new',
-  pressure:'pressure_new'
-};
 let rainviewerTimestamp = null;
 let rainviewerInterval = null;
 
@@ -472,24 +464,6 @@ function initMap() {
       paint: { 'raster-opacity': 0.55 }
     });
 
-    // ── OpenWeatherMap tile layers (hidden) ───────────
-    for (const [key, layer] of Object.entries(OWM_LAYERS)) {
-      const srcId = `owm-${key}`;
-      map.addSource(srcId, {
-        type: 'raster',
-        tiles: [`https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${OWM_KEY}`],
-        tileSize: 256,
-        maxzoom: 18
-      });
-      map.addLayer({
-        id: `owm-${key}-layer`,
-        type: 'raster',
-        source: srcId,
-        layout: { visibility: 'none' },
-        paint: { 'raster-opacity': 0.7 }
-      });
-    }
-
     // ── RainViewer radar source & layer (hidden) ──────
     map.addSource('rainviewer', {
       type: 'raster',
@@ -744,21 +718,6 @@ function setupOverlayControls() {
   bathyToggle?.addEventListener('change', () => {
     map.setLayoutProperty('bathymetry-layer', 'visibility', bathyToggle.checked ? 'visible' : 'none');
   });
-
-  // OWM weather layer toggles
-  const owmToggles = {
-    clouds:  'ol-clouds',
-    precip:  'ol-precip',
-    temp:    'ol-temp',
-    wind:    'ol-wind',
-    pressure:'ol-pressure'
-  };
-  for (const [key, elId] of Object.entries(owmToggles)) {
-    const el = document.getElementById(elId);
-    el?.addEventListener('change', () => {
-      map.setLayoutProperty(`owm-${key}-layer`, 'visibility', el.checked ? 'visible' : 'none');
-    });
-  }
 
   // RainViewer radar toggle
   const radarToggle = document.getElementById('ol-radar');
