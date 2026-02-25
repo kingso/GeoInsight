@@ -42,6 +42,54 @@ body {
 
 .maplibregl-ctrl-attrib { font-size: 11px !important; }
 
+/* ---------- Logo / Home Button ---------- */
+#logo-home {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+#logo-home:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent);
+  transform: scale(1.03);
+}
+#logo-home:active {
+  transform: scale(0.97);
+}
+.logo-icon {
+  font-size: 20px;
+  margin-right: 4px;
+  line-height: 1;
+}
+.logo-geo {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent-light), #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.logo-insight {
+  font-size: 18px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
 /* ---------- Click Hint ---------- */
 #click-hint {
   position: fixed;
@@ -229,6 +277,17 @@ body {
   font-weight: 600;
   line-height: 1.3;
   padding-right: 30px;
+}
+.header-flag {
+  display: inline-block;
+  width: 24px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  position: relative;
+  top: -1px;
 }
 #profile-subtitle {
   font-size: 12px;
@@ -420,6 +479,11 @@ body {
   font-size: 10px;
   color: var(--accent-light);
   margin-top: 4px;
+}
+.forecast-day .day-sun {
+  font-size: 10px;
+  color: #fbbf24;
+  margin-top: 2px;
 }
 
 /* ---------- Air Quality Tab ---------- */

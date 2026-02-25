@@ -16,7 +16,8 @@ export async function fetchWeather(lat, lng) {
     daily: [
       'weather_code', 'temperature_2m_max', 'temperature_2m_min',
       'sunrise', 'sunset', 'precipitation_sum',
-      'precipitation_probability_max', 'wind_speed_10m_max'
+      'precipitation_probability_max', 'wind_speed_10m_max',
+      'sunshine_duration'
     ].join(','),
     timezone: 'auto',
     forecast_days: '7'
@@ -78,6 +79,7 @@ export async function fetchPlaceName(lat, lng) {
 
   return {
     display: parts.length ? parts.join(', ') : (data.display_name || 'Unknown location'),
+    countryCode: addr.country_code?.toUpperCase() || null,
     raw: data
   };
 }

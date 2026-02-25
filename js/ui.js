@@ -52,9 +52,20 @@ export function setError(tabId, message) {
 }
 
 // ── Update Header ───────────────────────────────────────
-export function updateHeader(title, subtitle) {
-  document.getElementById('profile-title').textContent = title;
+export function updateHeader(title, subtitle, flag = '') {
+  const titleEl = document.getElementById('profile-title');
+  if (flag) {
+    titleEl.innerHTML = `${flag} ${escapeHtml(title)}`;
+  } else {
+    titleEl.textContent = title;
+  }
   document.getElementById('profile-subtitle').textContent = subtitle;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // ── Render Overview Tab ─────────────────────────────────
@@ -173,12 +184,17 @@ export function renderWeather(weather) {
       const lo = Math.round(daily.temperature_2m_min[i]);
       const precip = daily.precipitation_probability_max?.[i];
 
+      const sunHrs = daily.sunshine_duration?.[i] != null
+        ? Math.round(daily.sunshine_duration[i] / 3600 * 10) / 10
+        : null;
+
       html += `
         <div class="forecast-day ${i === 0 ? 'today' : ''}">
           <div class="day-name">${dayName}</div>
           <div class="day-icon">${dIcon}</div>
           <div class="day-temps">${hi}° <span class="low">${lo}°</span></div>
           ${precip != null ? `<div class="day-precip">💧 ${precip}%</div>` : ''}
+          ${sunHrs != null ? `<div class="day-sun">☀️ ${sunHrs}h</div>` : ''}
         </div>`;
     }
     html += '</div></div>';

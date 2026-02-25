@@ -167,6 +167,9 @@ function initMap() {
               ${row('📏', 'Magnitude', `<strong>${props.mag}</strong> <span class="quake-badge ${magLabel.cls}">${magLabel.label}</span>`)}
               ${row('⬇️', 'Depth', `<strong>${depthMi} mi</strong> (${depthKm} km) <span class="quake-badge ${depthLabel.cls}">${depthLabel.label}</span>`)}
               ${row('📍', 'Coordinates', `${coords[1]?.toFixed(3)}°, ${coords[0]?.toFixed(3)}°`)}
+              ${props.alert ? (() => { const ai = getAlertInfo(props.alert); return ai ? row('🚨', 'Alert Level', `<span class="quake-badge ${ai.cls}">${ai.label}</span>`) : ''; })() : ''}
+              ${props.felt ? row('👥', 'Felt Reports', `<strong>${props.felt}</strong> people`) : ''}
+              ${props.cdi ? row('📊', 'Intensity (CDI)', `<strong>${props.cdi}</strong>`) : ''}
               ${props.tsunami ? row('🌊', 'Tsunami', '<strong style="color:#ef4444">Warning issued</strong>') : ''}
             </div>
             <a class="quake-link" href="${props.url}" target="_blank">View on USGS ↗</a>
@@ -367,10 +370,12 @@ async function handleMapClick(e) {
   data.lng = lng;
 
   // Update header
+  const cc = data.place?.countryCode;
+  const flag = cc ? countryFlag(cc) : '';
   const title = data.place?.display || 'Unknown Location';
   const subtitle = `${lat.toFixed(5)}°, ${lng.toFixed(5)}°` +
     (data.elevation != null ? ` · ${Math.round(data.elevation)}m` : '');
-  updateHeader(title, subtitle);
+  updateHeader(title, subtitle, flag);
 
   // Render Overview
   if (data.weather || data.elevation || data.place) {
@@ -493,6 +498,32 @@ function setupProfilePanel() {
   });
 }
 
+// ── Logo / Home Reset ───────────────────────────────────
+function setupLogoHome() {
+  document.getElementById('logo-home')?.addEventListener('click', (e) => {
+    e.preventDefault();
+
+    // Close panel and remove marker
+    hidePanel();
+    if (marker) {
+      marker.remove();
+      marker = null;
+    }
+    currentLat = null;
+    currentLng = null;
+
+    // Clear URL hash
+    history.replaceState(null, '', window.location.pathname);
+
+    // Reset map view
+    map.flyTo({ center: [0, 25], zoom: 2, duration: 1500 });
+
+    // Close any open popups
+    const popups = document.querySelectorAll('.maplibregl-popup');
+    popups.forEach(p => p.remove());
+  });
+}
+
 // ── Load Location from URL Hash ─────────────────────────
 function loadFromHash() {
   const hash = window.location.hash.replace('#', '');
@@ -535,12 +566,30 @@ function getDepthLabel(depthMi) {
   return                { label: 'Deep',    cls: 'badge-deep' };
 }
 
+// ── Country flag from 2-letter code ─────────────────────
+function countryFlag(code) {
+  if (!code || code.length !== 2) return '';
+  return `<img src="https://flagcdn.com/24x18/${code.toLowerCase()}.png" alt="${code}" class="header-flag" />`;
+}
+
+// ── Earthquake Alert Badge ──────────────────────────────
+function getAlertInfo(alert) {
+  switch (alert) {
+    case 'green':  return { label: 'Green',  cls: 'badge-light' };
+    case 'yellow': return { label: 'Yellow', cls: 'badge-moderate' };
+    case 'orange': return { label: 'Orange', cls: 'badge-strong' };
+    case 'red':    return { label: 'Red',    cls: 'badge-major' };
+    default:       return null;
+  }
+}
+
 // ── Initialize ──────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initTabs();
   setupLayerPanel();
   setupProfilePanel();
+  setupLogoHome();
 
   // These need the map to be loaded first
   map.on('load', () => {
