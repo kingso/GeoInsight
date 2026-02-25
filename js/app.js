@@ -22,6 +22,7 @@ let eqRefreshInterval = null;
 let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
 let platesLoaded = false;
 let terminatorInterval = null;
+let sunLinesVisible = false;
 
 // ── Base Layer Definitions ──────────────────────────────
 const BASE_LAYERS = {
@@ -377,6 +378,63 @@ function initMap() {
       }
     });
 
+    // ── Sun direction lines source & layers (hidden) ────
+    map.addSource('sun-directions', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+
+    map.addLayer({
+      id: 'sun-dir-line-rise',
+      type: 'line',
+      source: 'sun-directions',
+      filter: ['==', ['get', 'type'], 'sunrise'],
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#ffd700',
+        'line-width': 2.5,
+        'line-opacity': 0.85,
+        'line-dasharray': [4, 3]
+      }
+    });
+
+    map.addLayer({
+      id: 'sun-dir-line-set',
+      type: 'line',
+      source: 'sun-directions',
+      filter: ['==', ['get', 'type'], 'sunset'],
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#ff6b35',
+        'line-width': 2.5,
+        'line-opacity': 0.85,
+        'line-dasharray': [4, 3]
+      }
+    });
+
+    map.addLayer({
+      id: 'sun-dir-label',
+      type: 'symbol',
+      source: 'sun-directions',
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'label'],
+        'text-font': ['Open Sans Bold'],
+        'text-size': 11,
+        'text-anchor': 'center',
+        'text-offset': [0, 0],
+        'symbol-placement': 'line-center'
+      },
+      paint: {
+        'text-color': ['case',
+          ['==', ['get', 'type'], 'sunrise'], '#ffd700',
+          '#ff6b35'
+        ],
+        'text-halo-color': 'rgba(0,0,0,0.7)',
+        'text-halo-width': 1.5
+      }
+    });
+
     // Check URL hash for initial location
     loadFromHash();
   });
@@ -437,6 +495,8 @@ async function handleMapClick(e) {
   // Render Overview
   if (data.weather || data.elevation || data.place) {
     renderOverview(data);
+    // Wire sun direction lines toggle
+    setupSunDirToggle(lat, lng);
   } else {
     setError('tab-overview', data.errors.weather || 'Failed to load data');
   }
@@ -716,11 +776,14 @@ function setupLayerPanel() {
 
 // ── Profile Panel Close ─────────────────────────────────
 function setupProfilePanel() {
-  document.getElementById('profile-close')?.addEventListener('click', hidePanel);
+  document.getElementById('profile-close')?.addEventListener('click', () => {
+    hidePanel();
+    clearSunDirectionLines();
+  });
 
   // Escape key closes panel
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hidePanel();
+    if (e.key === 'Escape') { hidePanel(); clearSunDirectionLines(); }
   });
 }
 
@@ -807,6 +870,94 @@ function getAlertInfo(alert) {
     case 'red':    return { label: 'Red',    cls: 'badge-major' };
     default:       return null;
   }
+}
+
+// ── Sun Direction Lines on Map ───────────────────────
+const SUN_LINE_LAYERS = ['sun-dir-line-rise', 'sun-dir-line-set', 'sun-dir-label'];
+
+function setupSunDirToggle(lat, lng) {
+  const btn = document.getElementById('sun-dir-toggle');
+  if (!btn) return;
+
+  // If lines were visible for previous location, update them for new location
+  if (sunLinesVisible) {
+    drawSunDirectionLines(lat, lng);
+  }
+
+  btn.onclick = () => {
+    sunLinesVisible = !sunLinesVisible;
+    btn.classList.toggle('active', sunLinesVisible);
+    if (sunLinesVisible) {
+      drawSunDirectionLines(lat, lng);
+      SUN_LINE_LAYERS.forEach(id => map.setLayoutProperty(id, 'visibility', 'visible'));
+    } else {
+      SUN_LINE_LAYERS.forEach(id => map.setLayoutProperty(id, 'visibility', 'none'));
+    }
+  };
+}
+
+function drawSunDirectionLines(lat, lng) {
+  const az = getSunAzimuthFromChart(lat, lng);
+  const dist = 80; // km
+  const riseEnd = destinationPoint(lat, lng, az.sunriseAz, dist);
+  const setEnd = destinationPoint(lat, lng, az.sunsetAz, dist);
+
+  const geojson = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: [[lng, lat], riseEnd] },
+        properties: { type: 'sunrise', label: `☀️ Sunrise ${az.sunriseAz}°` }
+      },
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: [[lng, lat], setEnd] },
+        properties: { type: 'sunset', label: `🌅 Sunset ${az.sunsetAz}°` }
+      }
+    ]
+  };
+
+  map.getSource('sun-directions')?.setData(geojson);
+  SUN_LINE_LAYERS.forEach(id => map.setLayoutProperty(id, 'visibility', 'visible'));
+}
+
+function clearSunDirectionLines() {
+  sunLinesVisible = false;
+  map.getSource('sun-directions')?.setData({ type: 'FeatureCollection', features: [] });
+  SUN_LINE_LAYERS.forEach(id => {
+    try { map.setLayoutProperty(id, 'visibility', 'none'); } catch {}
+  });
+}
+
+function getSunAzimuthFromChart(lat, lng) {
+  const { sunCoords: sc, toDays: td, RAD: R } = { sunCoords, toDays, RAD };
+  const d = td(new Date());
+  const coords = sc(d);
+  const phi = lat * R;
+  const cosAz = Math.sin(coords.dec) / Math.cos(phi);
+  const clamped = Math.max(-1, Math.min(1, cosAz));
+  const azRise = Math.round(Math.acos(clamped) / R);
+  return { sunriseAz: azRise, sunsetAz: 360 - azRise };
+}
+
+// Destination point given start, bearing (degrees), distance (km)
+function destinationPoint(lat, lng, bearing, distKm) {
+  const R = 6371; // Earth radius km
+  const d = distKm / R;
+  const brng = bearing * RAD;
+  const lat1 = lat * RAD;
+  const lng1 = lng * RAD;
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng)
+  );
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(brng) * Math.sin(d) * Math.cos(lat1),
+    Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+  );
+
+  return [lng2 / RAD, lat2 / RAD];
 }
 
 // ── Earthquake Auto-Refresh ─────────────────────────────

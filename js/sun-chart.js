@@ -40,7 +40,7 @@ function eclipticLongitude(M) {
   return M + C + P + Math.PI;
 }
 
-export { sunCoords, toDays, RAD };
+export { sunCoords, toDays, RAD, getSunAzimuth };
 
 function sunCoords(d) {
   const M = solarMeanAnomaly(d);
@@ -63,6 +63,23 @@ function getSetJ(h, lw, phi, dec, n, M, L) {
   const w = hourAngle(h, phi, dec);
   const a = approxTransit(w, lw, n);
   return solarTransitJ(a, M, L);
+}
+
+// ── Public: Sunrise/Sunset azimuth (compass bearing) ───
+function getSunAzimuth(date, lat, lng) {
+  const d = toDays(date);
+  const sc = sunCoords(d);
+  const phi = lat * RAD;
+  const dec = sc.dec;
+
+  // Sunrise azimuth: cos(Az) = sin(dec) / cos(lat)
+  // This gives the angle from North at sunrise (sun altitude = 0)
+  const cosAz = Math.sin(dec) / Math.cos(phi);
+  const clamped = Math.max(-1, Math.min(1, cosAz));
+  const azRise = Math.acos(clamped) / RAD; // degrees from North
+  const azSet = 360 - azRise;               // sunset is mirror
+
+  return { sunriseAz: Math.round(azRise), sunsetAz: Math.round(azSet) };
 }
 
 // ── Public: Calculate sunrise/sunset/noon ───────────────
@@ -287,10 +304,13 @@ export function renderSunChart(canvas, lat, lng, timezone) {
 
   // Return today's data for the summary
   const todayData = data[todayIdx] || data[0];
+  const azimuth = getSunAzimuth(now, lat, lng);
   return {
     sunrise: fmtTime(todayData.riseDate),
     sunset:  fmtTime(todayData.setDate),
     dayLength: todayData.len,
+    sunriseAz: azimuth.sunriseAz,
+    sunsetAz: azimuth.sunsetAz,
     data
   };
 }

@@ -4,7 +4,7 @@
    ========================================================= */
 
 import { getWeatherInfo, windDirection, getAqiInfo } from './api.js';
-import { renderSunChart } from './sun-chart.js';
+import { renderSunChart, getSunAzimuth } from './sun-chart.js';
 
 // ── Deferred Sun Chart state ────────────────────────────
 let _sunChartPending = null; // { lat, lng, timezone }
@@ -114,11 +114,14 @@ export function renderOverview(data) {
       : null;
     const fmtT = dt => dtf ? dtf.format(dt) : dt.toTimeString().slice(0, 5);
     const dayLen = (set - rise) / 3600000;
+    const az = getSunAzimuth(new Date(), data.lat, data.lng);
+    const riseDir = compassDir(az.sunriseAz);
+    const setDir = compassDir(az.sunsetAz);
 
-    html += '<div class="info-card"><h4>Today\'s Daylight</h4>';
+    html += '<div class="info-card"><h4>Today\'s Daylight <button id="sun-dir-toggle" class="sun-dir-btn" title="Show sunrise/sunset direction lines on map">🧭</button></h4>';
     html += `<div class="stats-grid">
-      <div class="stat-item"><span class="stat-label">☀️ Sunrise</span><span class="stat-value">${fmtT(rise)}</span></div>
-      <div class="stat-item"><span class="stat-label">🌅 Sunset</span><span class="stat-value">${fmtT(set)}</span></div>
+      <div class="stat-item"><span class="stat-label">☀️ Sunrise</span><span class="stat-value">${fmtT(rise)} <span style="font-size:11px;color:var(--text-muted)">${riseDir} ${az.sunriseAz}°</span></span></div>
+      <div class="stat-item"><span class="stat-label">🌅 Sunset</span><span class="stat-value">${fmtT(set)} <span style="font-size:11px;color:var(--text-muted)">${setDir} ${az.sunsetAz}°</span></span></div>
       <div class="stat-item"><span class="stat-label">⏱️ Daylight</span><span class="stat-value">${Math.floor(dayLen)}h ${Math.round((dayLen % 1) * 60)}m</span></div>
       ${w ? `<div class="stat-item"><span class="stat-label">☁️ Cloud Cover</span><span class="stat-value">${w.cloud_cover}%</span></div>` : ''}
     </div>`;
@@ -293,12 +296,12 @@ function _renderSunCanvas() {
       <div class="sun-stat">
         <div class="icon">☀️</div>
         <div class="time" style="color:#ffd700">${result.sunrise}</div>
-        <div class="label">Sunrise</div>
+        <div class="label">Sunrise · ${compassDir(result.sunriseAz)} ${result.sunriseAz}°</div>
       </div>
       <div class="sun-stat">
         <div class="icon">🌅</div>
         <div class="time" style="color:#ff6b35">${result.sunset}</div>
-        <div class="label">Sunset</div>
+        <div class="label">Sunset · ${compassDir(result.sunsetAz)} ${result.sunsetAz}°</div>
       </div>
       <div class="sun-stat">
         <div class="icon">⏱️</div>
@@ -317,6 +320,12 @@ function detailRow(label, value) {
 
 function statItem(label, value) {
   return `<div class="stat-item"><span class="stat-label">${label}</span><span class="stat-value">${value}</span></div>`;
+}
+
+function compassDir(deg) {
+  const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+  return dirs[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
 }
 
 function formatUV(uv) {

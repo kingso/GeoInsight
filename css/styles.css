@@ -371,6 +371,30 @@ body {
   letter-spacing: 0.06em;
   color: var(--text-dim);
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Sun direction toggle button */
+.sun-dir-btn {
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: auto;
+}
+.sun-dir-btn:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--accent);
+}
+.sun-dir-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: var(--accent);
 }
 
 /* Stats grid */
