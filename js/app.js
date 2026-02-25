@@ -3,7 +3,8 @@
    Map initialization, layer management, interaction handling
    ========================================================= */
 
-import { fetchAllLocationData, fetchEarthquakes, fetchBuoys, getWeatherInfo } from './api.js';
+import { fetchAllLocationData, fetchEarthquakes, fetchBuoys, fetchTectonicPlates, getWeatherInfo } from './api.js';
+import { sunCoords, toDays, RAD } from './sun-chart.js';
 import {
   initTabs, showPanel, hidePanel, updateHeader,
   setLoading, setError,
@@ -19,6 +20,8 @@ let earthquakesLoaded = false;
 let buoysLoaded = false;
 let eqRefreshInterval = null;
 let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
+let platesLoaded = false;
+let terminatorInterval = null;
 
 // ── Base Layer Definitions ──────────────────────────────
 const BASE_LAYERS = {
@@ -322,6 +325,58 @@ function initMap() {
     map.on('mouseenter', 'buoys-clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'buoys-clusters', () => { map.getCanvas().style.cursor = ''; });
 
+    // ── Day/Night Terminator source & layers (hidden) ──
+    map.addSource('terminator', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+
+    map.addLayer({
+      id: 'terminator-fill',
+      type: 'fill',
+      source: 'terminator',
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-color': '#000014',
+        'fill-opacity': 0.35
+      }
+    });
+
+    map.addLayer({
+      id: 'terminator-line',
+      type: 'line',
+      source: 'terminator',
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#f59e0b',
+        'line-width': 1.5,
+        'line-opacity': 0.6
+      }
+    });
+
+    // ── Tectonic plates source & layers (hidden) ────────
+    map.addSource('plates', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+
+    map.addLayer({
+      id: 'plates-boundaries',
+      type: 'line',
+      source: 'plates',
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#f97316',
+        'line-width': [
+          'interpolate', ['linear'], ['zoom'],
+          1, 0.8,
+          4, 1.5,
+          8, 2.5
+        ],
+        'line-opacity': 0.75
+      }
+    });
+
     // Check URL hash for initial location
     loadFromHash();
   });
@@ -331,7 +386,7 @@ function initMap() {
 async function handleMapClick(e) {
   // Skip if click hit an overlay feature (earthquake, buoy, etc.)
   if (e.point) {
-    const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count'];
+    const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count', 'terminator-fill'];
     const activeLayers = overlayLayers.filter(id => { try { return !!map.getLayer(id); } catch { return false; } });
     if (activeLayers.length > 0) {
       const hits = map.queryRenderedFeatures(e.point, { layers: activeLayers });
@@ -449,6 +504,10 @@ function setupOverlayControls() {
 
   earthquakeToggle?.addEventListener('change', async () => {
     if (earthquakeToggle.checked) {
+      // Request notification permission when EQ mode is activated
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
       if (!earthquakesLoaded) {
         try {
           const data = await fetchEarthquakes();
@@ -506,6 +565,136 @@ function setupOverlayControls() {
       buoyLayers.forEach(id => map.setLayoutProperty(id, 'visibility', 'none'));
     }
   });
+
+  // Day/Night Terminator toggle
+  const terminatorToggle = document.getElementById('ol-terminator');
+  const terminatorLayers = ['terminator-fill', 'terminator-line'];
+
+  terminatorToggle?.addEventListener('change', () => {
+    if (terminatorToggle.checked) {
+      updateTerminator();
+      terminatorLayers.forEach(id => map.setLayoutProperty(id, 'visibility', 'visible'));
+      terminatorInterval = setInterval(updateTerminator, 60_000);
+    } else {
+      terminatorLayers.forEach(id => map.setLayoutProperty(id, 'visibility', 'none'));
+      if (terminatorInterval) { clearInterval(terminatorInterval); terminatorInterval = null; }
+    }
+  });
+
+  // Tectonic Plates toggle
+  const platesToggle = document.getElementById('ol-plates');
+
+  platesToggle?.addEventListener('change', async () => {
+    if (platesToggle.checked) {
+      if (!platesLoaded) {
+        const label = platesToggle.closest('label');
+        const origText = label?.querySelector('.layer-label')?.textContent;
+        if (label) label.querySelector('.layer-label').textContent = '🌋 Loading plates…';
+        try {
+          const data = await fetchTectonicPlates();
+          map.getSource('plates')?.setData(data);
+          platesLoaded = true;
+          console.log(`Loaded ${data.features.length} plate boundaries`);
+        } catch (err) {
+          console.error('Failed to load tectonic plates:', err);
+          platesToggle.checked = false;
+          if (label) label.querySelector('.layer-label').textContent = origText;
+          return;
+        }
+        if (label) label.querySelector('.layer-label').textContent = origText;
+      }
+      map.setLayoutProperty('plates-boundaries', 'visibility', 'visible');
+    } else {
+      map.setLayoutProperty('plates-boundaries', 'visibility', 'none');
+    }
+  });
+}
+
+// ── Day/Night Terminator Computation ────────────────────
+function computeTerminatorGeoJSON() {
+  const now = new Date();
+  const d = toDays(now);
+  const sc = sunCoords(d);
+
+  // Subsolar latitude = solar declination
+  const subsolarLat = sc.dec / RAD;
+
+  // Greenwich Mean Sidereal Time (GMST) in radians
+  const hrs = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+  const gmst = RAD * (280.46061837 + 360.98564736629 * d + hrs * 0);
+  // Subsolar longitude = RA → hour angle relative to Greenwich
+  const subsolarLng = ((sc.ra / RAD) - (gmst / RAD) + (hrs - 12) * 15 + 720) % 360 - 180;
+
+  // Build the night polygon: for each latitude, find the longitude offset where sun is at horizon
+  const points = [];
+  const step = 2; // degrees
+
+  // Terminator line: at each latitude, compute the longitude where altitude = 0
+  for (let lat = -90; lat <= 90; lat += step) {
+    const latRad = lat * RAD;
+    const decRad = sc.dec;
+
+    // Hour angle where sun altitude = 0 (sunrise/sunset angle)
+    const cosH = -Math.tan(latRad) * Math.tan(decRad);
+    let ha;
+    if (cosH >= 1) {
+      // Sun never rises at this latitude (polar night) — terminator at subsolar side
+      ha = 0;
+    } else if (cosH <= -1) {
+      // Sun never sets at this latitude (midnight sun) — terminator at opposite side
+      ha = 180;
+    } else {
+      ha = Math.acos(cosH) / RAD;
+    }
+
+    // The DARK side extends from subsolarLng + ha to subsolarLng - ha (going the long way)
+    // West edge of darkness
+    const darkWest = subsolarLng + ha;
+    points.push([wrapLng(darkWest), lat]);
+  }
+
+  // Return along the other edge (east edge of darkness)
+  for (let lat = 90; lat >= -90; lat -= step) {
+    const latRad = lat * RAD;
+    const decRad = sc.dec;
+
+    const cosH = -Math.tan(latRad) * Math.tan(decRad);
+    let ha;
+    if (cosH >= 1) {
+      ha = 0;
+    } else if (cosH <= -1) {
+      ha = 180;
+    } else {
+      ha = Math.acos(cosH) / RAD;
+    }
+
+    const darkEast = subsolarLng - ha;
+    points.push([wrapLng(darkEast), lat]);
+  }
+
+  // Close the polygon
+  points.push(points[0]);
+
+  return {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [points]
+      },
+      properties: { type: 'night' }
+    }]
+  };
+}
+
+function wrapLng(lng) {
+  return ((lng + 540) % 360) - 180;
+}
+
+function updateTerminator() {
+  const data = computeTerminatorGeoJSON();
+  map.getSource('terminator')?.setData(data);
 }
 
 // ── Layer Panel Toggle ──────────────────────────────────
@@ -650,6 +839,7 @@ async function refreshEarthquakes(force = false) {
 
     if (newQuakes.length > 0 && eqPreviousIds.size > 0) {
       showNewEarthquakes(newQuakes);
+      notifyNewEarthquakes(newQuakes);
     }
 
     eqPreviousIds = currentIds;
@@ -755,6 +945,39 @@ function toggleEqPanelCollapse() {
   const panel = document.getElementById('eq-new-panel');
   if (!panel) return;
   panel.classList.toggle('collapsed');
+}
+
+// ── Desktop Notifications for New Earthquakes ──────────
+function notifyNewEarthquakes(quakes) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  // Sort by magnitude descending
+  const sorted = [...quakes].sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+  const top = sorted[0].properties;
+  const count = quakes.length;
+
+  const title = count === 1
+    ? `🔴 M${top.mag} Earthquake`
+    : `🔴 ${count} New Earthquakes`;
+
+  const body = count === 1
+    ? `${top.place || 'Unknown location'}\n${timeAgo(new Date(top.time))} · ${top.depth_km ?? '?'} km deep`
+    : `Strongest: M${top.mag} — ${top.place || 'Unknown'}\n+${count - 1} more`;
+
+  const notification = new Notification(title, {
+    body,
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🌍</text></svg>',
+    tag: 'geoinsight-eq',  // replaces previous EQ notification
+    silent: false
+  });
+
+  // Click notification → focus window and fly to strongest quake
+  notification.onclick = () => {
+    window.focus();
+    const coords = sorted[0].geometry.coordinates;
+    map.flyTo({ center: [coords[0], coords[1]], zoom: 6, duration: 1500 });
+    notification.close();
+  };
 }
 
 function timeAgo(date) {

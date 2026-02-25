@@ -189,6 +189,21 @@ function parseNdbcLatestObs(text) {
   return { type: 'FeatureCollection', features };
 }
 
+// ── Tectonic Plates (GitHub / Peter Bird PB2002) ────────
+let tectonicPlatesCache = null;
+
+export async function fetchTectonicPlates() {
+  if (tectonicPlatesCache) return tectonicPlatesCache;
+
+  const res = await fetch(
+    'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json'
+  );
+  if (!res.ok) throw new Error(`Tectonic plates fetch error: ${res.status}`);
+  const data = await res.json();
+  tectonicPlatesCache = data;
+  return data;
+}
+
 // ── Fetch all location data in parallel ─────────────────
 export async function fetchAllLocationData(lat, lng) {
   const [weather, airQuality, elevation, place] = await Promise.allSettled([

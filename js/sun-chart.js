@@ -40,6 +40,8 @@ function eclipticLongitude(M) {
   return M + C + P + Math.PI;
 }
 
+export { sunCoords, toDays, RAD };
+
 function sunCoords(d) {
   const M = solarMeanAnomaly(d);
   const L = eclipticLongitude(M);
