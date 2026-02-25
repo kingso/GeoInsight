@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoInsight — Earth Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+</head>
+<body>
+
+  <!-- Full-screen map -->
+  <div id="map"></div>
+
+  <!-- Layer Controls (top-right) -->
+  <div id="layer-panel" class="control-panel">
+    <button id="layer-toggle" class="control-toggle" title="Toggle layers panel">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+    </button>
+    <div id="layer-content" class="control-content">
+      <h3>Base Map</h3>
+      <div class="layer-group" id="base-layers">
+        <label class="layer-option">
+          <input type="radio" name="base" value="streets" checked>
+          <span class="layer-label">🗺️ Streets</span>
+        </label>
+        <label class="layer-option">
+          <input type="radio" name="base" value="topo">
+          <span class="layer-label">⛰️ Topographic</span>
+        </label>
+        <label class="layer-option">
+          <input type="radio" name="base" value="satellite">
+          <span class="layer-label">🛰️ Satellite</span>
+        </label>
+        <label class="layer-option">
+          <input type="radio" name="base" value="dark">
+          <span class="layer-label">🌑 Dark</span>
+        </label>
+      </div>
+
+      <h3>Overlays</h3>
+      <div class="layer-group" id="overlay-layers">
+        <label class="layer-option">
+          <input type="checkbox" id="ol-earthquakes">
+          <span class="layer-label">🔴 Earthquakes (7 days)</span>
+        </label>
+        <label class="layer-option">
+          <input type="checkbox" id="ol-buoys">
+          <span class="layer-label">🚢 NOAA Buoys</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Panel (right side, slides in) -->
+  <div id="profile-panel" class="profile-panel">
+    <button id="profile-close" class="close-btn" title="Close (Esc)">&times;</button>
+
+    <div id="profile-header">
+      <h2 id="profile-title">Select a Location</h2>
+      <p id="profile-subtitle">Click anywhere on the map</p>
+    </div>
+
+    <div id="profile-tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="weather">Weather</button>
+      <button class="tab" data-tab="air">Air Quality</button>
+      <button class="tab" data-tab="sun">Sun Chart</button>
+    </div>
+
+    <div id="profile-body">
+      <div id="tab-overview" class="tab-content active">
+        <div class="placeholder-text">Click on the map to explore a location</div>
+      </div>
+      <div id="tab-weather" class="tab-content">
+        <div class="placeholder-text">Weather data will appear here</div>
+      </div>
+      <div id="tab-air" class="tab-content">
+        <div class="placeholder-text">Air quality data will appear here</div>
+      </div>
+      <div id="tab-sun" class="tab-content">
+        <div class="placeholder-text">Sun chart will appear here</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coordinate display (bottom-left) -->
+  <div id="coords-display">Move cursor over map</div>
+
+  <!-- Click hint (center, fades out) -->
+  <div id="click-hint">
+    <span>🌍</span> Click anywhere to explore
+  </div>
+
+  <!-- Attribution bar -->
+  <div id="data-attribution">
+    Data: <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a> ·
+    <a href="https://earthquake.usgs.gov/" target="_blank">USGS</a> ·
+    <a href="https://www.ndbc.noaa.gov/" target="_blank">NDBC</a> ·
+    <a href="https://nominatim.openstreetmap.org/" target="_blank">Nominatim</a> ·
+    <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap</a>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
