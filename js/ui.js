@@ -98,7 +98,11 @@ export function renderOverview(data) {
   html += detailRow('📍 Place', place?.display || '—');
   html += detailRow('🌐 Coordinates', `${data.lat.toFixed(4)}°, ${data.lng.toFixed(4)}°`);
   if (elevation != null) {
-    html += detailRow('🏔️ Elevation', `${Math.round(elevation)} m (${Math.round(elevation * 3.281)} ft)`);
+    if (elevation < 0) {
+      html += detailRow('🌊 Depth', `${Math.abs(Math.round(elevation))} m (${Math.abs(Math.round(elevation * 3.281))} ft)`);
+    } else {
+      html += detailRow('🏔️ Elevation', `${Math.round(elevation)} m (${Math.round(elevation * 3.281)} ft)`);
+    }
   }
   if (weather?.timezone) {
     html += detailRow('🕐 Timezone', weather.timezone.replace(/_/g, ' '));
