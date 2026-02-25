@@ -24,6 +24,18 @@ let platesLoaded = false;
 let terminatorInterval = null;
 let sunLinesVisible = false;
 
+// ── Weather / Radar State ───────────────────────────────
+const OWM_KEY = '7d0d8b3bb9ede8865ed56119ad86159a';
+const OWM_LAYERS = {
+  clouds:  'clouds_new',
+  precip:  'precipitation_new',
+  temp:    'temp_new',
+  wind:    'wind_new',
+  pressure:'pressure_new'
+};
+let rainviewerTimestamp = null;
+let rainviewerInterval = null;
+
 // ── Base Layer Definitions ──────────────────────────────
 const BASE_LAYERS = {
   streets: {
@@ -49,6 +61,12 @@ const BASE_LAYERS = {
     tileSize: 256,
     attribution: '&copy; <a href="https://carto.com/">CARTO</a>, &copy; OSM contributors',
     maxzoom: 20
+  },
+  ocean: {
+    tiles: ['https://tiles.arcgis.com/tiles/C8EMgrsFcRFL6LrL/arcgis/rest/services/GEBCO_basemap_NCEI/MapServer/tile/{z}/{y}/{x}'],
+    tileSize: 256,
+    attribution: '&copy; <a href="https://www.gebco.net/">GEBCO</a>, NOAA NCEI',
+    maxzoom: 10
   }
 };
 
@@ -65,12 +83,14 @@ function initMap() {
         'base-topo':      { type: 'raster', tiles: BASE_LAYERS.topo.tiles,      tileSize: 256, attribution: BASE_LAYERS.topo.attribution,      maxzoom: BASE_LAYERS.topo.maxzoom },
         'base-satellite': { type: 'raster', tiles: BASE_LAYERS.satellite.tiles, tileSize: 256, attribution: BASE_LAYERS.satellite.attribution, maxzoom: BASE_LAYERS.satellite.maxzoom },
         'base-dark':      { type: 'raster', tiles: BASE_LAYERS.dark.tiles,      tileSize: 256, attribution: BASE_LAYERS.dark.attribution,      maxzoom: BASE_LAYERS.dark.maxzoom },
+        'base-ocean':     { type: 'raster', tiles: BASE_LAYERS.ocean.tiles,     tileSize: 256, attribution: BASE_LAYERS.ocean.attribution,     maxzoom: BASE_LAYERS.ocean.maxzoom },
       },
       layers: [
         { id: 'layer-streets',   type: 'raster', source: 'base-streets',   layout: { visibility: 'visible' } },
         { id: 'layer-topo',      type: 'raster', source: 'base-topo',      layout: { visibility: 'none' } },
         { id: 'layer-satellite', type: 'raster', source: 'base-satellite', layout: { visibility: 'none' } },
         { id: 'layer-dark',      type: 'raster', source: 'base-dark',      layout: { visibility: 'none' } },
+        { id: 'layer-ocean',     type: 'raster', source: 'base-ocean',     layout: { visibility: 'none' } },
       ]
     },
     center: [0, 25],
@@ -437,6 +457,54 @@ function initMap() {
       }
     });
 
+    // ── Bathymetry overlay (GEBCO semi-transparent) ────
+    map.addSource('bathymetry', {
+      type: 'raster',
+      tiles: ['https://tiles.arcgis.com/tiles/C8EMgrsFcRFL6LrL/arcgis/rest/services/GEBCO_basemap_NCEI/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 10
+    });
+    map.addLayer({
+      id: 'bathymetry-layer',
+      type: 'raster',
+      source: 'bathymetry',
+      layout: { visibility: 'none' },
+      paint: { 'raster-opacity': 0.55 }
+    });
+
+    // ── OpenWeatherMap tile layers (hidden) ───────────
+    for (const [key, layer] of Object.entries(OWM_LAYERS)) {
+      const srcId = `owm-${key}`;
+      map.addSource(srcId, {
+        type: 'raster',
+        tiles: [`https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${OWM_KEY}`],
+        tileSize: 256,
+        maxzoom: 18
+      });
+      map.addLayer({
+        id: `owm-${key}-layer`,
+        type: 'raster',
+        source: srcId,
+        layout: { visibility: 'none' },
+        paint: { 'raster-opacity': 0.7 }
+      });
+    }
+
+    // ── RainViewer radar source & layer (hidden) ──────
+    map.addSource('rainviewer', {
+      type: 'raster',
+      tiles: ['https://tilecache.rainviewer.com/v2/radar/nowcast/256/{z}/{x}/{y}/2/1_1.png'],
+      tileSize: 256,
+      maxzoom: 12
+    });
+    map.addLayer({
+      id: 'rainviewer-layer',
+      type: 'raster',
+      source: 'rainviewer',
+      layout: { visibility: 'none' },
+      paint: { 'raster-opacity': 0.7 }
+    });
+
     // Check URL hash for initial location
     loadFromHash();
   });
@@ -525,7 +593,7 @@ async function handleMapClick(e) {
 // ── Base Layer Switching ────────────────────────────────
 function setupBaseLayerControls() {
   const radios = document.querySelectorAll('#base-layers input[type="radio"]');
-  const layerIds = ['layer-streets', 'layer-topo', 'layer-satellite', 'layer-dark'];
+  const layerIds = ['layer-streets', 'layer-topo', 'layer-satellite', 'layer-dark', 'layer-ocean'];
 
   radios.forEach(radio => {
     radio.addEventListener('change', () => {
@@ -668,6 +736,40 @@ function setupOverlayControls() {
       map.setLayoutProperty('plates-boundaries', 'visibility', 'visible');
     } else {
       map.setLayoutProperty('plates-boundaries', 'visibility', 'none');
+    }
+  });
+
+  // Bathymetry overlay toggle
+  const bathyToggle = document.getElementById('ol-bathymetry');
+  bathyToggle?.addEventListener('change', () => {
+    map.setLayoutProperty('bathymetry-layer', 'visibility', bathyToggle.checked ? 'visible' : 'none');
+  });
+
+  // OWM weather layer toggles
+  const owmToggles = {
+    clouds:  'ol-clouds',
+    precip:  'ol-precip',
+    temp:    'ol-temp',
+    wind:    'ol-wind',
+    pressure:'ol-pressure'
+  };
+  for (const [key, elId] of Object.entries(owmToggles)) {
+    const el = document.getElementById(elId);
+    el?.addEventListener('change', () => {
+      map.setLayoutProperty(`owm-${key}-layer`, 'visibility', el.checked ? 'visible' : 'none');
+    });
+  }
+
+  // RainViewer radar toggle
+  const radarToggle = document.getElementById('ol-radar');
+  radarToggle?.addEventListener('change', () => {
+    if (radarToggle.checked) {
+      updateRainViewer();
+      map.setLayoutProperty('rainviewer-layer', 'visibility', 'visible');
+      rainviewerInterval = setInterval(updateRainViewer, 5 * 60 * 1000);
+    } else {
+      map.setLayoutProperty('rainviewer-layer', 'visibility', 'none');
+      if (rainviewerInterval) { clearInterval(rainviewerInterval); rainviewerInterval = null; }
     }
   });
 }
@@ -995,10 +1097,10 @@ function showRecentEarthquakes(features) {
   const panel = document.getElementById('eq-new-panel');
   const title = panel?.querySelector('.eq-new-title');
   if (title) title.textContent = 'Recent Earthquakes';
-  showNewEarthquakes(recent, false);
+  showNewEarthquakes(recent, false, 'time');
 }
 
-function showNewEarthquakes(quakes, isNew = true) {
+function showNewEarthquakes(quakes, isNew = true, sortBy = 'mag') {
   const panel = document.getElementById('eq-new-panel');
   const list = document.getElementById('eq-new-list');
   const countEl = document.getElementById('eq-new-count');
@@ -1010,8 +1112,12 @@ function showNewEarthquakes(quakes, isNew = true) {
     titleEl.textContent = 'New Earthquakes';
   }
 
-  // Sort by magnitude descending
-  quakes.sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+  // Sort: by time (newest first) for recent, by magnitude for new alerts
+  if (sortBy === 'time') {
+    quakes.sort((a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0));
+  } else {
+    quakes.sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+  }
 
   // Limit to 10
   const items = quakes.slice(0, 10);
@@ -1115,6 +1221,44 @@ function timeAgo(date) {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+// ── RainViewer Radar Update ─────────────────────────────
+async function updateRainViewer() {
+  try {
+    const resp = await fetch('https://api.rainviewer.com/public/weather-maps.json');
+    const data = await resp.json();
+    const latest = data.radar?.past?.slice(-1)[0];
+    if (!latest) return;
+
+    const ts = latest.path; // e.g. "/v2/radar/1234567890"
+    if (ts === rainviewerTimestamp) return; // no change
+    rainviewerTimestamp = ts;
+
+    const tileUrl = `https://tilecache.rainviewer.com${ts}/256/{z}/{x}/{y}/2/1_1.png`;
+    const src = map.getSource('rainviewer');
+    if (src) {
+      // Update tiles by replacing the source
+      map.removeLayer('rainviewer-layer');
+      map.removeSource('rainviewer');
+      map.addSource('rainviewer', {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
+        maxzoom: 12
+      });
+      map.addLayer({
+        id: 'rainviewer-layer',
+        type: 'raster',
+        source: 'rainviewer',
+        layout: { visibility: 'visible' },
+        paint: { 'raster-opacity': 0.7 }
+      });
+    }
+    console.log('RainViewer updated:', ts);
+  } catch (err) {
+    console.error('RainViewer update failed:', err);
+  }
 }
 
 // ── Initialize ──────────────────────────────────────────
