@@ -336,6 +336,7 @@ function initMap() {
       id: 'terminator-fill',
       type: 'fill',
       source: 'terminator',
+      filter: ['==', ['get', 'type'], 'night'],
       layout: { visibility: 'none' },
       paint: {
         'fill-color': '#000014',
@@ -347,6 +348,7 @@ function initMap() {
       id: 'terminator-line',
       type: 'line',
       source: 'terminator',
+      filter: ['==', ['get', 'type'], 'terminator-edge'],
       layout: { visibility: 'none' },
       paint: {
         'line-color': '#f59e0b',
@@ -444,7 +446,7 @@ function initMap() {
 async function handleMapClick(e) {
   // Skip if click hit an overlay feature (earthquake, buoy, etc.)
   if (e.point) {
-    const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count', 'terminator-fill'];
+    const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count'];
     const activeLayers = overlayLayers.filter(id => { try { return !!map.getLayer(id); } catch { return false; } });
     if (activeLayers.length > 0) {
       const hits = map.queryRenderedFeatures(e.point, { layers: activeLayers });
@@ -676,80 +678,53 @@ function computeTerminatorGeoJSON() {
   const d = toDays(now);
   const sc = sunCoords(d);
 
-  // Subsolar latitude = solar declination
-  const subsolarLat = sc.dec / RAD;
+  // GMST in degrees (already includes fractional day because d is fractional)
+  const gmstDeg = (280.46061837 + 360.98564736629 * d) % 360;
 
-  // Greenwich Mean Sidereal Time (GMST) in radians
-  const hrs = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
-  const gmst = RAD * (280.46061837 + 360.98564736629 * d + hrs * 0);
-  // Subsolar longitude = RA → hour angle relative to Greenwich
-  const subsolarLng = ((sc.ra / RAD) - (gmst / RAD) + (hrs - 12) * 15 + 720) % 360 - 180;
+  // Subsolar longitude = RA(sun) − GMST, wrapped to [−180, 180]
+  const subsolarLng = (((sc.ra / RAD) - gmstDeg + 540) % 360) - 180;
 
-  // Build the night polygon: for each latitude, find the longitude offset where sun is at horizon
-  const points = [];
-  const step = 2; // degrees
+  const step = 1; // degree resolution
+  const tanDec = Math.tan(sc.dec);
+  const terminatorLine = [];
 
-  // Terminator line: at each latitude, compute the longitude where altitude = 0
-  for (let lat = -90; lat <= 90; lat += step) {
-    const latRad = lat * RAD;
-    const decRad = sc.dec;
-
-    // Hour angle where sun altitude = 0 (sunrise/sunset angle)
-    const cosH = -Math.tan(latRad) * Math.tan(decRad);
-    let ha;
-    if (cosH >= 1) {
-      // Sun never rises at this latitude (polar night) — terminator at subsolar side
-      ha = 0;
-    } else if (cosH <= -1) {
-      // Sun never sets at this latitude (midnight sun) — terminator at opposite side
-      ha = 180;
+  // For each longitude, compute the terminator latitude where sun altitude = 0:
+  //   tan(lat) = −cos(HA) / tan(dec)
+  // where HA = (GMST + lng − RA) in radians = (lng − subsolarLng) in degrees
+  for (let i = 0; i <= 360; i += step) {
+    const lng = -180 + i;
+    const ha = (lng - subsolarLng) * RAD;
+    let lat;
+    if (Math.abs(tanDec) < 1e-10) {
+      // Near equinox — terminator is a pole-to-pole line
+      lat = (Math.cos(ha) > 0) ? -90 : 90;
     } else {
-      ha = Math.acos(cosH) / RAD;
+      lat = Math.atan(-Math.cos(ha) / tanDec) / RAD;
     }
-
-    // The DARK side extends from subsolarLng + ha to subsolarLng - ha (going the long way)
-    // West edge of darkness
-    const darkWest = subsolarLng + ha;
-    points.push([wrapLng(darkWest), lat]);
+    terminatorLine.push([lng, lat]);
   }
 
-  // Return along the other edge (east edge of darkness)
-  for (let lat = 90; lat >= -90; lat -= step) {
-    const latRad = lat * RAD;
-    const decRad = sc.dec;
-
-    const cosH = -Math.tan(latRad) * Math.tan(decRad);
-    let ha;
-    if (cosH >= 1) {
-      ha = 0;
-    } else if (cosH <= -1) {
-      ha = 180;
-    } else {
-      ha = Math.acos(cosH) / RAD;
-    }
-
-    const darkEast = subsolarLng - ha;
-    points.push([wrapLng(darkEast), lat]);
-  }
-
-  // Close the polygon
-  points.push(points[0]);
+  // Night polygon: terminator curve → close along the dark pole
+  // dec > 0 (northern summer) → south pole is dark
+  // dec < 0 (northern winter) → north pole is dark
+  const darkPoleLat = sc.dec > 0 ? -90 : 90;
+  const nightCoords = [...terminatorLine, [180, darkPoleLat], [-180, darkPoleLat], terminatorLine[0]];
 
   return {
     type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [points]
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [nightCoords] },
+        properties: { type: 'night' }
       },
-      properties: { type: 'night' }
-    }]
+      {
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: terminatorLine },
+        properties: { type: 'terminator-edge' }
+      }
+    ]
   };
-}
-
-function wrapLng(lng) {
-  return ((lng + 540) % 360) - 180;
 }
 
 function updateTerminator() {
