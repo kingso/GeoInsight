@@ -73,11 +73,14 @@ body {
   font-size: 20px;
   margin-right: 4px;
   line-height: 1;
+  display: flex;
+  align-items: center;
 }
 .logo-geo {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1;
   background: linear-gradient(135deg, var(--accent-light), #818cf8);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -88,6 +91,7 @@ body {
   font-weight: 300;
   color: var(--text);
   letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 /* ---------- Click Hint ---------- */
@@ -760,6 +764,224 @@ body {
 }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: #ffffff;
+}
+
+/* ---------- Earthquake Meta (timestamp + refresh) ---------- */
+.eq-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.eq-meta.hidden { display: none; }
+
+.eq-timestamp {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.eq-refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.eq-refresh-btn:hover {
+  background: var(--bg-card);
+}
+.eq-refresh-btn.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ---------- Earthquakes Panel (glassy, collapsible) ---------- */
+.eq-new-panel {
+  position: fixed;
+  bottom: 40px;
+  left: 12px;
+  z-index: 200;
+  width: 320px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  overflow: hidden;
+  animation: fadeSlideUp 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: box-shadow 0.4s ease;
+}
+.eq-new-panel.hidden { display: none; }
+
+/* Animated glowing border for new earthquakes */
+.eq-new-panel.has-new {
+  border-color: transparent;
+  background-clip: padding-box;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(239, 68, 68, 0.6),
+    0 0 20px rgba(239, 68, 68, 0.2),
+    0 0 40px rgba(239, 68, 68, 0.1);
+  animation: eqBorderPulse 1.5s ease-in-out 3;
+}
+
+@keyframes eqBorderPulse {
+  0%, 100% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 1px rgba(239, 68, 68, 0.3),
+      0 0 10px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06),
+      0 0 0 2px rgba(239, 68, 68, 0.8),
+      0 0 25px rgba(239, 68, 68, 0.3),
+      0 0 50px rgba(239, 68, 68, 0.15);
+  }
+}
+
+/* Collapsed state */
+.eq-new-panel.collapsed .eq-new-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+.eq-new-panel .eq-new-body {
+  max-height: 320px;
+  opacity: 1;
+  transition: max-height 0.3s ease, opacity 0.2s ease 0.1s;
+}
+.eq-new-panel.collapsed .eq-new-collapse svg {
+  transform: rotate(-90deg);
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.eq-new-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.eq-new-panel.collapsed .eq-new-header {
+  border-bottom: none;
+}
+.eq-new-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warning);
+}
+.eq-new-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--danger);
+  color: white;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+.eq-new-count.hidden { display: none; }
+
+.eq-new-collapse {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.eq-new-collapse svg {
+  transition: transform 0.3s ease;
+}
+.eq-new-collapse:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.eq-new-list {
+  overflow-y: auto;
+  max-height: 300px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.eq-new-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.eq-new-item:last-child { border-bottom: none; }
+.eq-new-item:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* New EQ item entrance animation */
+.eq-new-item.eq-item-new {
+  animation: eqItemSlideIn 0.4s ease both;
+}
+@keyframes eqItemSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.eq-new-mag {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: white;
+  font-size: 15px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.eq-new-info {
+  min-width: 0;
+}
+.eq-new-place {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eq-new-detail {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 2px;
 }
 
 /* ---------- Custom MapLibre marker ---------- */

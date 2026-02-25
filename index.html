@@ -53,6 +53,10 @@
         <label class="layer-option">
           <input type="checkbox" id="ol-earthquakes">
           <span class="layer-label">🔴 Earthquakes (7 days)</span>
+          <span id="eq-meta" class="eq-meta hidden">
+            <span id="eq-timestamp" class="eq-timestamp"></span>
+            <button id="eq-refresh" class="eq-refresh-btn" title="Refresh now">🔄</button>
+          </span>
         </label>
         <label class="layer-option">
           <input type="checkbox" id="ol-buoys">
@@ -96,6 +100,20 @@
 
   <!-- Coordinate display (bottom-left) -->
   <div id="coords-display">Move cursor over map</div>
+
+  <!-- Earthquakes Panel (bottom-left, collapsible + glassy) -->
+  <div id="eq-new-panel" class="eq-new-panel hidden">
+    <div class="eq-new-header" id="eq-new-header-toggle">
+      <span class="eq-new-title">New Earthquakes</span>
+      <span id="eq-new-count" class="eq-new-count"></span>
+      <button id="eq-new-collapse" class="eq-new-collapse" title="Collapse">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <div id="eq-new-body" class="eq-new-body">
+      <div id="eq-new-list" class="eq-new-list"></div>
+    </div>
+  </div>
 
   <!-- Click hint (center, fades out) -->
   <div id="click-hint">

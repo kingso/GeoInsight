@@ -88,9 +88,9 @@ export async function fetchPlaceName(lat, lng) {
 let earthquakeCache = { data: null, timestamp: 0 };
 const QUAKE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchEarthquakes() {
+export async function fetchEarthquakes(forceRefresh = false) {
   const now = Date.now();
-  if (earthquakeCache.data && (now - earthquakeCache.timestamp) < QUAKE_CACHE_TTL) {
+  if (!forceRefresh && earthquakeCache.data && (now - earthquakeCache.timestamp) < QUAKE_CACHE_TTL) {
     return earthquakeCache.data;
   }
 
@@ -101,7 +101,6 @@ export async function fetchEarthquakes() {
   const data = await res.json();
 
   // Enrich features: extract depth from geometry[2] into properties
-  // (MapLibre expressions can't access the Z coordinate directly)
   for (const f of data.features) {
     const depthKm = f.geometry.coordinates[2] ?? 0;
     f.properties.depth_km = Math.round(depthKm * 10) / 10;

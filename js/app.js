@@ -17,6 +17,8 @@ let currentLat = null;
 let currentLng = null;
 let earthquakesLoaded = false;
 let buoysLoaded = false;
+let eqRefreshInterval = null;
+let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
 
 // ── Base Layer Definitions ──────────────────────────────
 const BASE_LAYERS = {
@@ -419,9 +421,32 @@ function setupBaseLayerControls() {
 }
 
 // ── Overlay Layer Controls ──────────────────────────────
+const EQ_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+
 function setupOverlayControls() {
   // Earthquakes toggle
   const earthquakeToggle = document.getElementById('ol-earthquakes');
+  const eqMeta = document.getElementById('eq-meta');
+  const eqTimestamp = document.getElementById('eq-timestamp');
+  const eqRefreshBtn = document.getElementById('eq-refresh');
+
+  // Refresh button click
+  eqRefreshBtn?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await refreshEarthquakes(true);
+  });
+
+  // Collapse/expand EQ panel
+  document.getElementById('eq-new-collapse')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleEqPanelCollapse();
+  });
+  document.getElementById('eq-new-header-toggle')?.addEventListener('click', () => {
+    const panel = document.getElementById('eq-new-panel');
+    if (panel?.classList.contains('collapsed')) toggleEqPanelCollapse();
+  });
+
   earthquakeToggle?.addEventListener('change', async () => {
     if (earthquakeToggle.checked) {
       if (!earthquakesLoaded) {
@@ -429,6 +454,12 @@ function setupOverlayControls() {
           const data = await fetchEarthquakes();
           map.getSource('earthquakes')?.setData(data);
           earthquakesLoaded = true;
+          // Store all current IDs so first refresh can detect new ones
+          eqPreviousIds = new Set(data.features.map(f => f.id ?? f.properties.code));
+          updateEqTimestamp();
+          eqMeta?.classList.remove('hidden');
+          // Show the 5 most recent earthquakes on first load
+          showRecentEarthquakes(data.features);
         } catch (err) {
           console.error('Failed to load earthquakes:', err);
           earthquakeToggle.checked = false;
@@ -436,8 +467,14 @@ function setupOverlayControls() {
         }
       }
       map.setLayoutProperty('earthquakes-circle', 'visibility', 'visible');
+      // Start auto-refresh
+      startEqAutoRefresh();
     } else {
       map.setLayoutProperty('earthquakes-circle', 'visibility', 'none');
+      stopEqAutoRefresh();
+      eqMeta?.classList.add('hidden');
+      document.getElementById('eq-new-panel')?.classList.add('hidden');
+      document.getElementById('eq-new-panel')?.classList.remove('collapsed', 'has-new');
     }
   });
 
@@ -581,6 +618,154 @@ function getAlertInfo(alert) {
     case 'red':    return { label: 'Red',    cls: 'badge-major' };
     default:       return null;
   }
+}
+
+// ── Earthquake Auto-Refresh ─────────────────────────────
+function startEqAutoRefresh() {
+  stopEqAutoRefresh();
+  eqRefreshInterval = setInterval(() => refreshEarthquakes(true), EQ_REFRESH_MS);
+}
+
+function stopEqAutoRefresh() {
+  if (eqRefreshInterval) {
+    clearInterval(eqRefreshInterval);
+    eqRefreshInterval = null;
+  }
+}
+
+async function refreshEarthquakes(force = false) {
+  const btn = document.getElementById('eq-refresh');
+  if (btn) btn.classList.add('spinning');
+
+  try {
+    const data = await fetchEarthquakes(force);
+    map.getSource('earthquakes')?.setData(data);
+
+    // Detect new earthquakes
+    const currentIds = new Set(data.features.map(f => f.id ?? f.properties.code));
+    const newQuakes = data.features.filter(f => {
+      const id = f.id ?? f.properties.code;
+      return !eqPreviousIds.has(id);
+    });
+
+    if (newQuakes.length > 0 && eqPreviousIds.size > 0) {
+      showNewEarthquakes(newQuakes);
+    }
+
+    eqPreviousIds = currentIds;
+    updateEqTimestamp();
+    console.log(`EQ refresh: ${data.features.length} total, ${newQuakes.length} new`);
+  } catch (err) {
+    console.error('EQ refresh failed:', err);
+  } finally {
+    if (btn) btn.classList.remove('spinning');
+  }
+}
+
+function updateEqTimestamp() {
+  const el = document.getElementById('eq-timestamp');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  el.title = `Last updated: ${now.toLocaleString()}`;
+}
+
+function showRecentEarthquakes(features) {
+  // Sort by time descending (most recent first) and take top 5
+  const recent = [...features]
+    .sort((a, b) => (b.properties.time ?? 0) - (a.properties.time ?? 0))
+    .slice(0, 5);
+
+  const panel = document.getElementById('eq-new-panel');
+  const title = panel?.querySelector('.eq-new-title');
+  if (title) title.textContent = 'Recent Earthquakes';
+  showNewEarthquakes(recent, false);
+}
+
+function showNewEarthquakes(quakes, isNew = true) {
+  const panel = document.getElementById('eq-new-panel');
+  const list = document.getElementById('eq-new-list');
+  const countEl = document.getElementById('eq-new-count');
+  if (!panel || !list) return;
+
+  // Set title
+  const titleEl = panel.querySelector('.eq-new-title');
+  if (titleEl && isNew) {
+    titleEl.textContent = 'New Earthquakes';
+  }
+
+  // Sort by magnitude descending
+  quakes.sort((a, b) => (b.properties.mag ?? 0) - (a.properties.mag ?? 0));
+
+  // Limit to 10
+  const items = quakes.slice(0, 10);
+
+  // Update count badge
+  if (countEl) {
+    countEl.textContent = items.length;
+    countEl.classList.toggle('hidden', items.length === 0);
+  }
+
+  list.innerHTML = items.map((f, i) => {
+    const p = f.properties;
+    const mag = p.mag ?? '?';
+    const coords = f.geometry.coordinates;
+    const time = new Date(p.time);
+    const ago = timeAgo(time);
+    const depthKm = f.properties.depth_km ?? Math.round((f.geometry.coordinates[2] ?? 0) * 10) / 10;
+    const color = getDepthColor(depthKm);
+    const newClass = isNew ? ' eq-item-new' : '';
+    const delay = isNew ? ` style="animation-delay:${i * 0.1}s"` : '';
+
+    return `
+      <div class="eq-new-item${newClass}" data-lng="${coords[0]}" data-lat="${coords[1]}"${delay}>
+        <div class="eq-new-mag" style="background:${color}">${mag}</div>
+        <div class="eq-new-info">
+          <div class="eq-new-place">${p.place || 'Unknown'}</div>
+          <div class="eq-new-detail">${ago} · ${depthKm} km deep</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Click to fly to earthquake
+  list.querySelectorAll('.eq-new-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const lng = parseFloat(item.dataset.lng);
+      const lat = parseFloat(item.dataset.lat);
+      map.flyTo({ center: [lng, lat], zoom: 6, duration: 1500 });
+    });
+  });
+
+  // If collapsed and new quakes arrived, expand and show glow
+  if (isNew && panel.classList.contains('collapsed')) {
+    panel.classList.add('has-new');
+    toggleEqPanelCollapse(); // expand
+  }
+
+  // Show panel and add glow for new items
+  panel.classList.remove('hidden');
+  if (isNew) {
+    panel.classList.add('has-new');
+    // Remove glow after animation completes
+    setTimeout(() => panel.classList.remove('has-new'), 4000);
+  }
+}
+
+function toggleEqPanelCollapse() {
+  const panel = document.getElementById('eq-new-panel');
+  if (!panel) return;
+  panel.classList.toggle('collapsed');
+}
+
+function timeAgo(date) {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 // ── Initialize ──────────────────────────────────────────
