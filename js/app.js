@@ -805,7 +805,7 @@ function setupGlobeToggle() {
 
   btn.addEventListener('click', () => {
     isGlobe = !isGlobe;
-    map.setProjection(isGlobe ? 'globe' : 'mercator');
+    map.setProjection(isGlobe ? { type: 'globe' } : { type: 'mercator' });
     btn.classList.toggle('active', isGlobe);
     btn.querySelector('.globe-toggle-label').textContent = isGlobe ? '2D' : '3D';
     btn.title = isGlobe ? 'Switch to 2D flat map' : 'Switch to 3D Globe';
