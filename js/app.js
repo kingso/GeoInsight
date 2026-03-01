@@ -71,6 +71,7 @@ function initMap() {
     container: 'map',
     style: {
       version: 8,
+      glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
       sources: {
         'base-streets':   { type: 'raster', tiles: BASE_LAYERS.streets.tiles,   tileSize: 256, attribution: BASE_LAYERS.streets.attribution,   maxzoom: BASE_LAYERS.streets.maxzoom },
         'base-topo':      { type: 'raster', tiles: BASE_LAYERS.topo.tiles,      tileSize: 256, attribution: BASE_LAYERS.topo.attribution,      maxzoom: BASE_LAYERS.topo.maxzoom },
