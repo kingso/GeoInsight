@@ -69,6 +69,50 @@ body {
 #logo-home:active {
   transform: scale(0.97);
 }
+
+/* ---------- Globe Toggle ---------- */
+.globe-toggle {
+  position: fixed;
+  top: 12px;
+  left: 190px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  user-select: none;
+}
+.globe-toggle:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent);
+  transform: scale(1.03);
+}
+.globe-toggle:active {
+  transform: scale(0.97);
+}
+.globe-toggle.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+.globe-toggle-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.globe-toggle-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
 .logo-icon {
   font-size: 20px;
   margin-right: 4px;

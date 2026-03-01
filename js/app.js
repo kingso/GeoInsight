@@ -23,6 +23,7 @@ let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
 let platesLoaded = false;
 let terminatorInterval = null;
 let sunLinesVisible = false;
+let isGlobe = false;
 
 // ── Weather / Radar State ───────────────────────────────
 let rainviewerTimestamp = null;
@@ -94,6 +95,9 @@ function initMap() {
   // Navigation controls
   map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
   map.addControl(new maplibregl.ScaleControl({ maxWidth: 200 }), 'bottom-left');
+
+  // Globe / 2D toggle
+  setupGlobeToggle();
 
   // Map click handler
   map.on('click', handleMapClick);
@@ -791,6 +795,20 @@ function computeTerminatorGeoJSON() {
 function updateTerminator() {
   const data = computeTerminatorGeoJSON();
   map.getSource('terminator')?.setData(data);
+}
+
+// ── Globe / 2D Toggle ───────────────────────────────────
+function setupGlobeToggle() {
+  const btn = document.getElementById('globe-toggle');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    isGlobe = !isGlobe;
+    map.setProjection(isGlobe ? 'globe' : 'mercator');
+    btn.classList.toggle('active', isGlobe);
+    btn.querySelector('.globe-toggle-label').textContent = isGlobe ? '2D' : '3D';
+    btn.title = isGlobe ? 'Switch to 2D flat map' : 'Switch to 3D Globe';
+  });
 }
 
 // ── Layer Panel Toggle ──────────────────────────────────
