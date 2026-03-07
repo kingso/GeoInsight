@@ -1,0 +1,24 @@
+{
+  "name": "geoinsight",
+  "version": "1.0.0",
+  "description": "An interactive world map with layered data overlays and rich location profiles. Built with vanilla HTML/CSS/JS — no frameworks, no build step.",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kingso/GeoInsight.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/kingso/GeoInsight/issues"
+  },
+  "homepage": "https://github.com/kingso/GeoInsight#readme",
+  "devDependencies": {
+    "vitest": "^4.0.18"
+  }
+}
