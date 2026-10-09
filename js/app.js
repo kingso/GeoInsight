@@ -521,7 +521,7 @@ async function handleMapClick(e) {
   if (e.point && eq3dActive) {
     const hit = pickQuakeSphere(e.point);
     if (hit) {
-      showQuakePopup(hit.props, hit.lng, hit.lat);
+      showQuakeSpherePopup(hit);
       return;
     }
   }
@@ -935,7 +935,7 @@ function loadFromHash() {
 }
 
 // ── Earthquake Popup ────────────────────────────────────
-function showQuakePopup(props, lng, lat) {
+function showQuakePopup(props, lng, lat, popupOptions = {}) {
   const time = new Date(props.time);
   const depthMi = props.depth_mi ?? '?';
   const depthKm = props.depth_km ?? '?';
@@ -948,7 +948,7 @@ function showQuakePopup(props, lng, lat) {
   const row = (icon, label, value) =>
     `<div class="quake-row"><span class="quake-row-label">${icon} ${label}</span><span class="quake-row-value">${value}</span></div>`;
 
-  new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup' })
+  return new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup', ...popupOptions })
     .setLngLat([lng, lat])
     .setHTML(`
       <div class="quake-popup">
@@ -1138,6 +1138,27 @@ function pickQuakeSphere(point) {
     if (c.dist(point) <= Math.max(radius, 4)) return s;
   }
   return null;
+}
+
+// Popups can only be pinned to the surface, so pin at the epicentre and offset up to the sphere each frame
+function showQuakeSpherePopup(sphere) {
+  const popup = showQuakePopup(sphere.props, sphere.lng, sphere.lat, { anchor: 'bottom' });
+  const follow = () => {
+    if (!eq3dActive) {
+      popup.setOffset(14);
+      map.off('render', follow);
+      return;
+    }
+    // Match by position/time: the sphere list is rebuilt on each data refresh
+    const item = projectQuakeSpheres().find(i =>
+      i.s.lng === sphere.lng && i.s.lat === sphere.lat && i.s.props.time === sphere.props.time);
+    if (!item) return;
+    const ground = projectAtAltitude(sphere.lng, sphere.lat, 0);
+    popup.setOffset([item.c.x - ground.x, item.c.y - ground.y - item.radius - 4]);
+  };
+  follow();
+  map.on('render', follow);
+  popup.on('close', () => map.off('render', follow));
 }
 
 function setEarthquakes3D(on) {
