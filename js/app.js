@@ -1002,17 +1002,66 @@ function canProject3D() {
   return typeof map.transform?.locationToScreenPoint === 'function';
 }
 
-// Screen-space centre, pixel radius and ground point of every visible sphere
+const EARTH_RADIUS_M = 6371008.8;
+
+// Same convention as MapLibre's globe: unit sphere, scaled by (1 + altitude / R)
+function globeVector(lng, lat, altitudeM) {
+  const lo = lng * Math.PI / 180, la = lat * Math.PI / 180, k = 1 + altitudeM / EARTH_RADIUS_M;
+  return [Math.sin(lo) * Math.cos(la) * k, Math.sin(la) * k, Math.cos(lo) * Math.cos(la) * k];
+}
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+// Camera position/direction in globe units, or null when not in globe mode
+function globeCamera() {
+  const cam = map.transform.cameraPosition;
+  if (!isGlobe || !cam || cam.length !== 3) return null;
+  const c = map.getCenter();
+  const f = sub(globeVector(c.lng, c.lat, 0), cam);
+  const len = Math.hypot(...f);
+  return { pos: [cam[0], cam[1], cam[2]], forward: [f[0] / len, f[1] / len, f[2] / len] };
+}
+
+// Distance in front of the camera, or null if behind it or hidden by the globe
+function globeVisibleDepth(camera, p) {
+  const d = sub(p, camera.pos);
+  const depth = dot(d, camera.forward);
+  if (depth <= 1e-4) return null;
+  const a = dot(d, d), b = 2 * dot(camera.pos, d), c = dot(camera.pos, camera.pos) - 1;
+  const disc = b * b - 4 * a * c;
+  if (disc > 0) {
+    const t = (-b - Math.sqrt(disc)) / (2 * a);
+    if (t > 0 && t < 0.999) return null;
+  }
+  return depth;
+}
+
+// Screen-space centre, pixel radius and ground point of every visible sphere, far to near
 function projectQuakeSpheres() {
   const out = [];
+  const camera = globeCamera();
   for (const s of eqSpheres) {
-    if (map.transform.isLocationOccluded?.(new maplibregl.LngLat(s.lng, s.lat))) continue;
+    let depth = 0;
+    let groundVisible = true;
+    if (camera) {
+      depth = globeVisibleDepth(camera, globeVector(s.lng, s.lat, s.centre));
+      if (depth == null) continue;
+      groundVisible = globeVisibleDepth(camera, globeVector(s.lng, s.lat, 0)) != null;
+    } else if (s.centre >= (map.transform.getCameraAltitude?.() ?? Infinity)) {
+      continue;
+    }
     const c = projectAtAltitude(s.lng, s.lat, s.centre);
     const edgeLng = s.lng + (s.r / 111320) / Math.max(Math.cos(s.lat * Math.PI / 180), 0.01);
-    const radius = Math.max(c.dist(projectAtAltitude(edgeLng, s.lat, s.centre)), 3);
-    out.push({ s, c, radius, ground: projectAtAltitude(s.lng, s.lat, 0) });
+    const trueRadius = c.dist(projectAtAltitude(edgeLng, s.lat, s.centre));
+    if (!Number.isFinite(trueRadius)) continue;
+    // Cap on-screen size by magnitude so zooming in doesn't fill the view with spheres
+    const maxRadius = 6 + Math.max((s.props.mag ?? 2.5) - 2.5, 0) * 5;
+    const radius = Math.min(Math.max(trueRadius, 3), maxRadius);
+    const ground = projectAtAltitude(s.lng, s.lat, 0);
+    out.push({ s, c, radius, ground: groundVisible ? ground : null, depth, sortY: ground.y });
   }
-  return out;
+  return camera ? out.sort((a, b) => b.depth - a.depth) : out.sort((a, b) => a.sortY - b.sortY);
 }
 
 function hexToRgba(hex, alpha) {
@@ -1031,16 +1080,17 @@ function drawQuakeSpheres() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  // Painter's algorithm: in a pitched view, ground points higher on screen are further away
-  const items = projectQuakeSpheres().sort((a, b) => a.ground.y - b.ground.y);
+  const items = projectQuakeSpheres();
 
   for (const { s, c, radius, ground } of items) {
-    ctx.strokeStyle = hexToRgba(s.color, 0.5);
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(ground.x, ground.y);
-    ctx.lineTo(c.x, c.y);
-    ctx.stroke();
+    if (ground) {
+      ctx.strokeStyle = hexToRgba(s.color, 0.5);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ground.x, ground.y);
+      ctx.lineTo(c.x, c.y);
+      ctx.stroke();
+    }
 
     const grad = ctx.createRadialGradient(
       c.x - radius * 0.35, c.y - radius * 0.35, radius * 0.1,
@@ -1059,14 +1109,14 @@ function drawQuakeSpheres() {
   }
 }
 
+// Nearest sphere under the point (list is far-to-near, so search from the end)
 function pickQuakeSphere(point) {
-  let best = null;
-  let bestScore = 1;
-  for (const { s, c, radius } of projectQuakeSpheres()) {
-    const score = c.dist(point) / Math.max(radius, 4);
-    if (score <= bestScore) { bestScore = score; best = s; }
+  const items = projectQuakeSpheres();
+  for (let i = items.length - 1; i >= 0; i--) {
+    const { s, c, radius } = items[i];
+    if (c.dist(point) <= Math.max(radius, 4)) return s;
   }
-  return best;
+  return null;
 }
 
 function setEarthquakes3D(on) {
