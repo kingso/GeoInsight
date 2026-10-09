@@ -32,6 +32,25 @@ let eq3dPrevView = null;    // { globe, pitch } to restore when leaving 3D view
 let rainviewerTimestamp = null;
 let rainviewerInterval = null;
 
+// ── Earthquake Size Scale ───────────────────────────────
+// Magnitude → on-screen radius (px), shared by 2D circles and 3D spheres
+const EQ_RADIUS_STOPS = [[2.5, 4], [4, 8], [5, 14], [6, 22], [7, 32], [8, 44], [9, 56]];
+
+// Same curve as MapLibre's ['interpolate', ['exponential', 1.5], ...] over EQ_RADIUS_STOPS
+function eqRadiusPx(mag) {
+  const stops = EQ_RADIUS_STOPS;
+  if (!(mag > stops[0][0])) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [x1, y1] = stops[i];
+    if (mag <= x1) {
+      const [x0, y0] = stops[i - 1];
+      const t = (Math.pow(1.5, mag - x0) - 1) / (Math.pow(1.5, x1 - x0) - 1);
+      return y0 + (y1 - y0) * t;
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
 // ── Base Layer Definitions ──────────────────────────────
 const BASE_LAYERS = {
   streets: {
@@ -128,13 +147,7 @@ function initMap() {
         // Size = magnitude (exponential scaling)
         'circle-radius': [
           'interpolate', ['exponential', 1.5], ['get', 'mag'],
-          2.5, 4,
-          4,   8,
-          5,   14,
-          6,   22,
-          7,   32,
-          8,   44,
-          9,   56
+          ...EQ_RADIUS_STOPS.flat()
         ],
         // Color = depth: red (shallow) → amber → yellow → green (deep)
         'circle-color': [
@@ -1020,7 +1033,7 @@ function globeCamera() {
   const c = map.getCenter();
   const f = sub(globeVector(c.lng, c.lat, 0), cam);
   const len = Math.hypot(...f);
-  return { pos: [cam[0], cam[1], cam[2]], forward: [f[0] / len, f[1] / len, f[2] / len] };
+  return { pos: [cam[0], cam[1], cam[2]], forward: [f[0] / len, f[1] / len, f[2] / len], centerDepth: len };
 }
 
 // Distance in front of the camera, or null if behind it or hidden by the globe
@@ -1052,12 +1065,10 @@ function projectQuakeSpheres() {
       continue;
     }
     const c = projectAtAltitude(s.lng, s.lat, s.centre);
-    const edgeLng = s.lng + (s.r / 111320) / Math.max(Math.cos(s.lat * Math.PI / 180), 0.01);
-    const trueRadius = c.dist(projectAtAltitude(edgeLng, s.lat, s.centre));
-    if (!Number.isFinite(trueRadius)) continue;
-    // Cap on-screen size by magnitude so zooming in doesn't fill the view with spheres
-    const maxRadius = 6 + Math.max((s.props.mag ?? 2.5) - 2.5, 0) * 5;
-    const radius = Math.min(Math.max(trueRadius, 3), maxRadius);
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) continue;
+    // Same pixel size as the 2D circle at the view centre; nearer/farther spheres scale for depth
+    const perspective = camera ? Math.min(Math.max(camera.centerDepth / depth, 0.5), 1.5) : 1;
+    const radius = eqRadiusPx(s.props.mag) * perspective;
     const ground = projectAtAltitude(s.lng, s.lat, 0);
     out.push({ s, c, radius, ground: groundVisible ? ground : null, depth, sortY: ground.y });
   }
