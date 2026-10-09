@@ -172,9 +172,9 @@ function initMap() {
     map.getContainer().appendChild(quakeTag);
     const showQuakeTag = (p, point) => {
       const mag = Number(p.mag);
-      const depth = p.depth_km != null ? `${Math.round(p.depth_km)} km deep` : 'depth ?';
-      quakeTag.textContent = `M${mag.toFixed(1)} · ${depth}`;
-      quakeTag.style.background = getMagLabel(mag).color;
+      const depth = p.depth_km != null ? `${Math.round(p.depth_km)} km deep` : 'depth unknown';
+      quakeTag.innerHTML = `<span class="quake-tag-mag">M${mag.toFixed(1)}</span><span class="quake-tag-depth">${depth}</span>`;
+      quakeTag.style.setProperty('--tag-bg', getMagLabel(mag).color);
       quakeTag.style.left = `${point.x}px`;
       quakeTag.style.top = `${point.y}px`;
       quakeTag.classList.add('visible');

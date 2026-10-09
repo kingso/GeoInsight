@@ -798,17 +798,37 @@ body {
   pointer-events: none;
   display: none;
 }
-.quake-tooltip.visible { display: block; }
+.quake-tooltip.visible { display: flex; }
 .quake-tag {
-  padding: 4px 10px;
-  border-radius: 12px;
+  --tag-bg: #16a34a;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--tag-bg);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #fff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 12px;
-  font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
+.quake-tag::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  background: var(--tag-bg);
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  transform: translateX(-50%) rotate(45deg);
+}
+.quake-tag-mag { font-weight: 700; font-size: 13px; }
+.quake-tag-depth { opacity: 0.9; font-weight: 500; }
 .badge-shallow    { background: #fee2e2; color: #991b1b; }
 .badge-mid        { background: #ffedd5; color: #9a3412; }
 .badge-intermediate { background: #fef9c3; color: #854d0e; }
