@@ -27,6 +27,7 @@ let isGlobe = false;
 let eqData = null;          // latest USGS FeatureCollection
 let eq3dActive = false;
 let eq3dPrevView = null;    // { globe, pitch } to restore when leaving 3D view
+let refreshQuakeHover = () => {};  // set once the map has loaded
 
 // ── Weather / Radar State ───────────────────────────────
 let rainviewerTimestamp = null;
@@ -194,33 +195,41 @@ function initMap() {
     };
     const hideQuakeTag = () => quakeTag.classList.remove('visible');
     let quakeHovered = false;
+    let hoverPoint = null; // last cursor position over the map canvas
 
     // One hover path for 2D circles and 3D spheres (spheres float above their footprint)
-    map.on('mousemove', (e) => {
+    const updateQuakeHover = () => {
       let props = null;
-      if (eq3dActive) {
-        props = pickQuakeSphere(e.point)?.props ?? null;
-      } else if (map.getLayoutProperty('earthquakes-circle', 'visibility') === 'visible') {
-        props = map.queryRenderedFeatures(e.point, { layers: ['earthquakes-circle'] })[0]?.properties ?? null;
+      if (hoverPoint) {
+        if (eq3dActive) {
+          props = pickQuakeSphere(hoverPoint)?.props ?? null;
+        } else if (map.getLayoutProperty('earthquakes-circle', 'visibility') === 'visible') {
+          props = map.queryRenderedFeatures(hoverPoint, { layers: ['earthquakes-circle'] })[0]?.properties ?? null;
+        }
       }
       if (props) {
-        showQuakeTag(props, e.point);
+        showQuakeTag(props, hoverPoint);
         map.getCanvas().style.cursor = 'pointer';
       } else {
         hideQuakeTag();
         if (quakeHovered) map.getCanvas().style.cursor = '';
       }
       quakeHovered = !!props;
-    });
-    map.on('click', hideQuakeTag);
-    map.on('movestart', hideQuakeTag);
+    };
+    refreshQuakeHover = updateQuakeHover;
+    const clearQuakeHover = () => { hoverPoint = null; updateQuakeHover(); };
 
-    // Hide whenever the pointer is over anything other than the map canvas, or leaves the window
+    map.on('mousemove', (e) => { hoverPoint = e.point; updateQuakeHover(); });
+    // The map can move under a still cursor (inertia, fly-to, tilt animation), so re-check
+    map.on('move', updateQuakeHover);
+    map.on('click', hideQuakeTag);
+
+    // Clear whenever the pointer is over anything other than the map canvas, or leaves the window
     document.addEventListener('pointermove', (e) => {
-      if (e.target !== map.getCanvas() && quakeTag.classList.contains('visible')) hideQuakeTag();
+      if (e.target !== map.getCanvas() && hoverPoint) clearQuakeHover();
     });
-    document.documentElement.addEventListener('pointerleave', hideQuakeTag);
-    window.addEventListener('blur', hideQuakeTag);
+    document.documentElement.addEventListener('pointerleave', clearQuakeHover);
+    window.addEventListener('blur', clearQuakeHover);
 
     // ── Buoy source & layers (hidden by default) ──────
     map.addSource('buoys', {
@@ -978,6 +987,7 @@ function setEarthquakeData(data) {
     buildEarthquakeSpheres(data);
     map.triggerRepaint();
   }
+  map.once('render', () => refreshQuakeHover());
 }
 
 function eqRadiusMeters(mag) {
@@ -1137,9 +1147,9 @@ function setEarthquakes3D(on) {
     return;
   }
   eq3dActive = on;
-  map.getContainer().querySelector('.quake-tooltip')?.classList.remove('visible');
   map.setLayoutProperty('earthquakes-circle', 'visibility', on ? 'none' : 'visible');
   eq3dCanvas.style.display = on ? 'block' : 'none';
+  map.once('render', () => refreshQuakeHover());
 
   if (on) {
     if (eqData) buildEarthquakeSpheres(eqData);
