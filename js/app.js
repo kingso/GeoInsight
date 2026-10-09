@@ -174,7 +174,7 @@ function initMap() {
       const mag = Number(p.mag);
       const depth = p.depth_km != null ? `${Math.round(p.depth_km)} km deep` : 'depth unknown';
       quakeTag.innerHTML = `<span class="quake-tag-mag">M${mag.toFixed(1)}</span><span class="quake-tag-depth">${depth}</span>`;
-      quakeTag.style.setProperty('--tag-bg', getMagLabel(mag).color);
+      quakeTag.style.setProperty('--tag-bg', getDepthColor(p.depth_km ?? 0));
       quakeTag.style.left = `${point.x}px`;
       quakeTag.style.top = `${point.y}px`;
       quakeTag.classList.add('visible');
@@ -1092,11 +1092,11 @@ function getDepthColor(depthKm) {
 }
 
 function getMagLabel(mag) {
-  if (mag < 4)   return { label: 'Light',    cls: 'badge-light',    color: '#16a34a' };
-  if (mag < 5)   return { label: 'Moderate', cls: 'badge-moderate', color: '#ca8a04' };
-  if (mag < 6)   return { label: 'Strong',   cls: 'badge-strong',   color: '#ea580c' };
-  if (mag < 7)   return { label: 'Major',    cls: 'badge-major',    color: '#dc2626' };
-  return            { label: 'Great',    cls: 'badge-great',    color: '#7c3aed' };
+  if (mag < 4)   return { label: 'Light',    cls: 'badge-light' };
+  if (mag < 5)   return { label: 'Moderate', cls: 'badge-moderate' };
+  if (mag < 6)   return { label: 'Strong',   cls: 'badge-strong' };
+  if (mag < 7)   return { label: 'Major',    cls: 'badge-major' };
+  return            { label: 'Great',    cls: 'badge-great' };
 }
 
 function getDepthLabel(depthMi) {
