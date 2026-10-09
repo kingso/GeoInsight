@@ -7,11 +7,10 @@ An interactive world map with layered data overlays and rich location profiles. 
 ## Features
 
 ### 🗺️ Base Maps
-Switch between five base map styles:
+Switch between four base map styles from the bar at the bottom of the screen:
+- **Satellite** (Esri) — default
 - **Streets** (OpenStreetMap)
 - **Topographic** (OpenTopoMap)
-- **Satellite** (Esri)
-- **Dark** (CARTO)
 - **Ocean** (GEBCO/NCEI bathymetry)
 
 ### 📊 Data Overlays
@@ -72,6 +71,7 @@ All APIs are **free and require no API keys**.
 | [Open-Meteo](https://open-meteo.com/) | Weather forecasts, air quality, elevation |
 | [USGS Earthquakes](https://earthquake.usgs.gov/) | Real-time earthquake feed |
 | [NOAA NDBC](https://www.ndbc.noaa.gov/) | Marine buoy observations |
+| [OpenTopoData](https://www.opentopodata.org/) | Ocean depth (GEBCO 2020) for water clicks |
 | [Nominatim](https://nominatim.openstreetmap.org/) | Reverse geocoding |
 | [RainViewer](https://www.rainviewer.com/) | Rain radar tiles |
 | [flagcdn.com](https://flagcdn.com/) | Country flag images |

@@ -36,7 +36,7 @@ geo-overlay/
 | What | Details |
 |---|---|
 | **Map** | MapLibre GL v5 (CDN: `unpkg.com/maplibre-gl@5`). **IMPORTANT:** v5 uses **promise-based APIs** — e.g. `getClusterExpansionZoom()` returns a Promise, do NOT use callbacks. v5 also supports globe projection (`map.setProjection({ type: 'globe' })`). |
-| **Base maps** | Streets (OSM), Topo (OpenTopoMap), Satellite (Esri), Dark (CARTO), Ocean (GEBCO/NCEI) — all raster tile sources defined in `app.js` |
+| **Base maps** | Satellite (Esri, default), Streets (OSM), Topo (OpenTopoMap), Ocean (GEBCO/NCEI) — all raster tile sources defined in `app.js` |
 | **JS modules** | ES modules via `<script type="module">`. `app.js` is the entry point importing from `api.js`, `ui.js`, `sun-chart.js` |
 | **CSS** | Single `styles.css`, CSS custom properties in `:root`, backdrop-filter glass effects |
 | **No framework** | Pure vanilla JS, no React/Vue/Svelte/etc. |
@@ -49,7 +49,7 @@ geo-overlay/
 |---|---|---|
 | **Open-Meteo Weather** | `api.open-meteo.com/v1/forecast` | Current conditions, 7-day forecast, sunshine_duration, sunrise/sunset |
 | **Open-Meteo Air Quality** | `air-quality-api.open-meteo.com/v1/air-quality` | US AQI, EU AQI, PM2.5, PM10, O₃, NO₂, SO₂, CO, dust |
-| **Open-Meteo Elevation** | `api.open-meteo.com/v1/elevation` | Terrain elevation for any lat/lng |
+| **Open-Meteo Elevation** | `api.open-meteo.com/v1/elevation` | Terrain elevation for any lat/lng. Returns 0 over water, so `fetchElevation()` then falls back to `/api/depth` (Worker → OpenTopoData GEBCO 2020, public limit ~1000 req/day) |
 | **USGS Earthquakes** | `earthquake.usgs.gov/.../2.5_week.geojson` | M2.5+ earthquakes (7 days). Properties: `mag`, `place`, `time`, `alert`, `felt`, `cdi`, `tsunami`, `url` |
 | **NOAA NDBC Buoys** | `ndbc.noaa.gov/data/latest_obs/latest_obs.txt` | Marine buoy observations (via same-origin Cloudflare Worker `worker/index.js` → `/api/buoys`). Fixed-width text parsed into GeoJSON |
 | **Nominatim** | `nominatim.openstreetmap.org/reverse` | Reverse geocoding → place name + `country_code` |
@@ -134,8 +134,9 @@ When elevation is negative (ocean/sea locations), the Overview tab shows "Depth"
 ### Panels & Controls
 - **Logo** (`#logo-home`): Top-left. Click resets map to world view, removes marker, clears hash, closes panel/popups.
 - **Globe Toggle** (`#globe-toggle`): Top-left beside logo. Switches between 2D Mercator and 3D globe projection.
-- **Layer Panel** (`#layer-panel`): Top-right. Toggle button + dropdown with three sections: **Base Map** (5 radios: Streets, Topo, Satellite, Dark, Ocean), **Overlays** (5 checkboxes: Earthquakes, NOAA Buoys, Day/Night, Tectonic Plates, Bathymetry), and **Weather** (1 checkbox: Rain Radar). EQ checkbox has adjacent timestamp + refresh button (`#eq-meta`).
-- **Profile Panel** (`.profile-panel`): Right side, slides in. 4 tabs: Overview, Weather, Air Quality, Sun Chart. Fixed header with flag + title + coords/elevation. Overview tab includes compass button for sun direction lines.
+- **Layer Panel** (`#layer-panel`): Top-right. Toggle button + dropdown with two sections: **Overlays** (5 checkboxes: Earthquakes, NOAA Buoys, Day/Night, Tectonic Plates, Bathymetry) and **Weather** (1 checkbox: Rain Radar). EQ checkbox has adjacent timestamp + refresh button (`#eq-meta`).
+- **Base Map Switcher** (`#basemap-switcher`): Bottom-centre pill of buttons (Satellite, Streets, Topo, Ocean). Re-centres in the visible map area when the profile panel is open (`.shifted`).
+- **Profile Panel** (`.profile-panel`): Right side, slides in. 4 tabs: Overview, Weather, Air Quality, Sun Chart. Fixed header with flag + title + coords/elevation. Overview tab includes compass button for sun direction lines. Closing it (× or Esc) also removes the location marker and clears the URL hash (`clearSelectedLocation()`).
 - **EQ Panel** (`#eq-new-panel`): Bottom-left, glassy, collapsible. Shows recent/new earthquakes with magnitude badges. Animated red border pulse when new quakes arrive. Desktop notifications for new earthquakes.
 - **Coords Display** (`#coords-display`): Bottom-left, shows lat/lng on mouse move.
 - **Attribution** (`#data-attribution`): Bottom-right, links to data sources (including RainViewer and GEBCO).

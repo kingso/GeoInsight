@@ -34,30 +34,6 @@
       </svg>
     </button>
     <div id="layer-content" class="control-content">
-      <h3>Base Map</h3>
-      <div class="layer-group" id="base-layers">
-        <label class="layer-option">
-          <input type="radio" name="base" value="streets" checked>
-          <span class="layer-label">🗺️ Streets</span>
-        </label>
-        <label class="layer-option">
-          <input type="radio" name="base" value="topo">
-          <span class="layer-label">⛰️ Topographic</span>
-        </label>
-        <label class="layer-option">
-          <input type="radio" name="base" value="satellite">
-          <span class="layer-label">🛰️ Satellite</span>
-        </label>
-        <label class="layer-option">
-          <input type="radio" name="base" value="dark">
-          <span class="layer-label">🌑 Dark</span>
-        </label>
-        <label class="layer-option">
-          <input type="radio" name="base" value="ocean">
-          <span class="layer-label">🌊 Ocean (GEBCO)</span>
-        </label>
-      </div>
-
       <h3>Overlays</h3>
       <div class="layer-group" id="overlay-layers">
         <label class="layer-option">
@@ -126,6 +102,14 @@
         <div class="placeholder-text">Sun chart will appear here</div>
       </div>
     </div>
+  </div>
+
+  <!-- Base Map Switcher (bottom-centre) -->
+  <div id="basemap-switcher" class="basemap-switcher" role="radiogroup" aria-label="Base map">
+    <button type="button" class="basemap-option active" data-base="satellite" role="radio" aria-checked="true">🛰️ Satellite</button>
+    <button type="button" class="basemap-option" data-base="streets" role="radio" aria-checked="false">🗺️ Streets</button>
+    <button type="button" class="basemap-option" data-base="topo" role="radio" aria-checked="false">⛰️ Topographic</button>
+    <button type="button" class="basemap-option" data-base="ocean" role="radio" aria-checked="false">🌊 Ocean</button>
   </div>
 
   <!-- Coordinate display (bottom-left) -->

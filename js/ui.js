@@ -33,11 +33,13 @@ export function initTabs() {
 export function showPanel() {
   document.getElementById('profile-panel').classList.add('open');
   document.getElementById('layer-panel')?.classList.add('shifted');
+  document.getElementById('basemap-switcher')?.classList.add('shifted');
 }
 
 export function hidePanel() {
   document.getElementById('profile-panel').classList.remove('open');
   document.getElementById('layer-panel')?.classList.remove('shifted');
+  document.getElementById('basemap-switcher')?.classList.remove('shifted');
 }
 
 // ── Set Loading State ───────────────────────────────────

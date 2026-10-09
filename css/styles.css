@@ -141,7 +141,7 @@ body {
 /* ---------- Click Hint ---------- */
 #click-hint {
   position: fixed;
-  bottom: 60px;
+  bottom: 76px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(15, 23, 42, 0.85);
@@ -194,6 +194,43 @@ body {
   text-decoration: none;
 }
 #data-attribution a:hover { color: var(--accent-light); }
+
+/* ---------- Base Map Switcher ---------- */
+.basemap-switcher {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  transition: left var(--transition);
+}
+.basemap-switcher.shifted {
+  left: calc((100vw - var(--panel-width)) / 2);
+}
+.basemap-option {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 40px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.basemap-option:hover { background: var(--bg-card); color: var(--text); }
+.basemap-option.active {
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--accent-light);
+}
 
 /* ---------- Layer Controls ---------- */
 .control-panel {
@@ -1101,6 +1138,10 @@ body {
   .control-content { min-width: 180px; }
 
   #data-attribution { display: none; }
+
+  .basemap-switcher, .basemap-switcher.shifted { bottom: 44px; left: 50%; }
+  .basemap-option { padding: 6px 10px; font-size: 12px; }
+  #click-hint { bottom: 96px; }
 }
 
 @media (max-width: 480px) {
