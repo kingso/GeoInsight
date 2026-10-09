@@ -166,7 +166,7 @@ function initMap() {
     map.getCanvasContainer().appendChild(eq3dCanvas);
     map.on('render', () => { if (eq3dActive) drawQuakeSpheres(); });
 
-    // Hover tag: magnitude + depth, coloured by magnitude severity
+    // Hover tag: magnitude + depth, in the same depth colour as the circle/sphere
     const quakeTag = document.createElement('div');
     quakeTag.className = 'quake-tag quake-tooltip';
     map.getContainer().appendChild(quakeTag);
@@ -180,27 +180,34 @@ function initMap() {
       quakeTag.classList.add('visible');
     };
     const hideQuakeTag = () => quakeTag.classList.remove('visible');
-    map.on('mousemove', 'earthquakes-circle', (e) => showQuakeTag(e.features[0].properties, e.point));
-    map.on('mouseleave', 'earthquakes-circle', hideQuakeTag);
-    map.on('click', hideQuakeTag);
+    let quakeHovered = false;
 
-    // Spheres float above their footprint, so hit-test them at their projected screen position
+    // One hover path for 2D circles and 3D spheres (spheres float above their footprint)
     map.on('mousemove', (e) => {
-      if (!eq3dActive) return;
-      const hit = pickQuakeSphere(e.point);
-      map.getCanvas().style.cursor = hit ? 'pointer' : '';
-      if (hit) showQuakeTag(hit.props, e.point);
-      else hideQuakeTag();
+      let props = null;
+      if (eq3dActive) {
+        props = pickQuakeSphere(e.point)?.props ?? null;
+      } else if (map.getLayoutProperty('earthquakes-circle', 'visibility') === 'visible') {
+        props = map.queryRenderedFeatures(e.point, { layers: ['earthquakes-circle'] })[0]?.properties ?? null;
+      }
+      if (props) {
+        showQuakeTag(props, e.point);
+        map.getCanvas().style.cursor = 'pointer';
+      } else {
+        hideQuakeTag();
+        if (quakeHovered) map.getCanvas().style.cursor = '';
+      }
+      quakeHovered = !!props;
     });
+    map.on('click', hideQuakeTag);
     map.on('movestart', hideQuakeTag);
-    map.on('mouseout', () => {
-      hideQuakeTag();
-      if (eq3dActive) map.getCanvas().style.cursor = '';
-    });
 
-    // Cursor change on earthquake hover
-    map.on('mouseenter', 'earthquakes-circle', () => { map.getCanvas().style.cursor = 'pointer'; });
-    map.on('mouseleave', 'earthquakes-circle', () => { map.getCanvas().style.cursor = ''; });
+    // Hide whenever the pointer is over anything other than the map canvas, or leaves the window
+    document.addEventListener('pointermove', (e) => {
+      if (e.target !== map.getCanvas() && quakeTag.classList.contains('visible')) hideQuakeTag();
+    });
+    document.documentElement.addEventListener('pointerleave', hideQuakeTag);
+    window.addEventListener('blur', hideQuakeTag);
 
     // ── Buoy source & layers (hidden by default) ──────
     map.addSource('buoys', {
