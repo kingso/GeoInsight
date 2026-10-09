@@ -6,7 +6,6 @@
   "observability": {
     "enabled": false
   },
-}
   "assets": {
     "directory": "."
   }
