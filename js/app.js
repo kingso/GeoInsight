@@ -160,47 +160,11 @@ function initMap() {
       showQuakePopup(e.features[0].properties, coords[0], coords[1]);
     });
 
-    // 3D earthquake spheres (hidden until "3D depth view" is enabled)
-    map.addSource('earthquakes-3d', {
-      type: 'geojson',
-      data: { type: 'FeatureCollection', features: [] }
-    });
-    const eqDepthColor = [
-      'interpolate', ['linear'], ['get', 'depth_km'],
-      0,   '#ef4444',
-      20,  '#f97316',
-      70,  '#f59e0b',
-      150, '#eab308',
-      300, '#84cc16',
-      500, '#22c55e',
-      700, '#059669'
-    ];
-    map.addLayer({
-      id: 'earthquakes-3d-stalk',
-      type: 'fill-extrusion',
-      source: 'earthquakes-3d',
-      filter: ['==', ['get', 'part'], 'stalk'],
-      layout: { visibility: 'none' },
-      paint: {
-        'fill-extrusion-color': eqDepthColor,
-        'fill-extrusion-base': ['get', 'base'],
-        'fill-extrusion-height': ['get', 'top'],
-        'fill-extrusion-opacity': 0.35
-      }
-    });
-    map.addLayer({
-      id: 'earthquakes-3d',
-      type: 'fill-extrusion',
-      source: 'earthquakes-3d',
-      filter: ['==', ['get', 'part'], 'ball'],
-      layout: { visibility: 'none' },
-      paint: {
-        'fill-extrusion-color': eqDepthColor,
-        'fill-extrusion-base': ['get', 'base'],
-        'fill-extrusion-height': ['get', 'top'],
-        'fill-extrusion-opacity': 0.9
-      }
-    });
+    // 3D earthquake spheres are drawn on a canvas over the map (see drawQuakeSpheres)
+    eq3dCanvas = document.createElement('canvas');
+    eq3dCanvas.className = 'eq3d-canvas';
+    map.getCanvasContainer().appendChild(eq3dCanvas);
+    map.on('render', () => { if (eq3dActive) drawQuakeSpheres(); });
 
     // Hover tag: magnitude + depth, coloured by magnitude severity
     const quakeTag = document.createElement('div');
@@ -979,67 +943,39 @@ function showQuakePopup(props, lng, lat) {
 
 // ── 3D Earthquake View ──────────────────────────────────
 const EQ3D_MAX_HEIGHT_M = 1_000_000; // deepest quake in the feed floats this high
-const EQ3D_SLICES = 10;
-const EQ3D_SEGMENTS = 24;
-let eqSpheres = [];  // { props, lng, lat, centre, r } for screen-space hit-testing
+const EQ3D_OPACITY = 0.55;
+let eqSpheres = [];  // { props, lng, lat, centre, r, color }
+let eq3dCanvas = null;
 
 function setEarthquakeData(data) {
   eqData = data;
   map.getSource('earthquakes')?.setData(data);
-  if (eq3dActive) map.getSource('earthquakes-3d')?.setData(buildEarthquakeSpheres(data));
+  if (eq3dActive) {
+    buildEarthquakeSpheres(data);
+    map.triggerRepaint();
+  }
 }
 
 function eqRadiusMeters(mag) {
   return 12000 * Math.pow(1.55, Math.max(mag ?? 2.5, 2.5) - 2.5);
 }
 
-function circleRing(lng, lat, radiusM) {
-  const dLat = radiusM / 111320;
-  const dLng = dLat / Math.max(Math.cos(lat * Math.PI / 180), 0.01);
-  const ring = [];
-  for (let i = 0; i <= EQ3D_SEGMENTS; i++) {
-    const a = (i / EQ3D_SEGMENTS) * 2 * Math.PI;
-    ring.push([lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)]);
-  }
-  return ring;
-}
-
-// fill-extrusion has no sphere primitive, so each ball is a stack of discs shaped like a sphere
 function buildEarthquakeSpheres(data) {
-  const features = [];
   const maxDepth = Math.max(1, ...data.features.map(f => f.properties.depth_km ?? 0));
-  eqSpheres = [];
-
-  for (const f of data.features) {
+  eqSpheres = data.features.map(f => {
     const [lng, lat] = f.geometry.coordinates;
     const p = f.properties;
     const r = eqRadiusMeters(p.mag);
-    const centre = r + ((p.depth_km ?? 0) / maxDepth) * EQ3D_MAX_HEIGHT_M;
-    const props = {
-      mag: p.mag, depth_km: p.depth_km, depth_mi: p.depth_mi, place: p.place, time: p.time,
-      url: p.url, alert: p.alert, felt: p.felt, cdi: p.cdi, tsunami: p.tsunami, lng, lat
+    return {
+      lng, lat, r,
+      centre: r + ((p.depth_km ?? 0) / maxDepth) * EQ3D_MAX_HEIGHT_M,
+      color: getDepthColor(p.depth_km ?? 0),
+      props: {
+        mag: p.mag, depth_km: p.depth_km, depth_mi: p.depth_mi, place: p.place, time: p.time,
+        url: p.url, alert: p.alert, felt: p.felt, cdi: p.cdi, tsunami: p.tsunami
+      }
     };
-    eqSpheres.push({ props, lng, lat, centre, r });
-
-    features.push({
-      type: 'Feature',
-      geometry: { type: 'Polygon', coordinates: [circleRing(lng, lat, Math.max(r * 0.06, 1500))] },
-      properties: { ...props, part: 'stalk', base: 0, top: centre - r }
-    });
-
-    const step = (2 * r) / EQ3D_SLICES;
-    for (let i = 0; i < EQ3D_SLICES; i++) {
-      const z0 = -r + i * step;
-      const zMid = z0 + step / 2;
-      const sliceR = Math.sqrt(r * r - zMid * zMid);
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: [circleRing(lng, lat, sliceR)] },
-        properties: { ...props, part: 'ball', base: centre + z0, top: centre + z0 + step }
-      });
-    }
-  }
-  return { type: 'FeatureCollection', features };
+  });
 }
 
 // Uses MapLibre's internal transform; the fake terrain supplies each sphere's altitude
@@ -1051,35 +987,90 @@ function projectAtAltitude(lng, lat, altitudeM) {
   return map.transform.locationToScreenPoint(new maplibregl.LngLat(lng, lat), fakeTerrain);
 }
 
-function pickQuakeSphere(point) {
-  if (typeof map.transform?.locationToScreenPoint !== 'function') {
-    const f = map.queryRenderedFeatures(point, { layers: ['earthquakes-3d'] })[0];
-    return f ? eqSpheres.find(s => s.lng === f.properties.lng && s.lat === f.properties.lat) ?? null : null;
-  }
+function canProject3D() {
+  return typeof map.transform?.locationToScreenPoint === 'function';
+}
 
-  let best = null;
-  let bestScore = 1;
+// Screen-space centre, pixel radius and ground point of every visible sphere
+function projectQuakeSpheres() {
+  const out = [];
   for (const s of eqSpheres) {
     if (map.transform.isLocationOccluded?.(new maplibregl.LngLat(s.lng, s.lat))) continue;
     const c = projectAtAltitude(s.lng, s.lat, s.centre);
     const edgeLng = s.lng + (s.r / 111320) / Math.max(Math.cos(s.lat * Math.PI / 180), 0.01);
-    const pxRadius = Math.max(c.dist(projectAtAltitude(edgeLng, s.lat, s.centre)), 4);
-    const score = c.dist(point) / pxRadius;
+    const radius = Math.max(c.dist(projectAtAltitude(edgeLng, s.lat, s.centre)), 3);
+    out.push({ s, c, radius, ground: projectAtAltitude(s.lng, s.lat, 0) });
+  }
+  return out;
+}
+
+function hexToRgba(hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+function drawQuakeSpheres() {
+  const dpr = window.devicePixelRatio || 1;
+  const { clientWidth: w, clientHeight: h } = map.getCanvas();
+  if (eq3dCanvas.width !== Math.round(w * dpr) || eq3dCanvas.height !== Math.round(h * dpr)) {
+    eq3dCanvas.width = Math.round(w * dpr);
+    eq3dCanvas.height = Math.round(h * dpr);
+  }
+  const ctx = eq3dCanvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  // Painter's algorithm: in a pitched view, ground points higher on screen are further away
+  const items = projectQuakeSpheres().sort((a, b) => a.ground.y - b.ground.y);
+
+  for (const { s, c, radius, ground } of items) {
+    ctx.strokeStyle = hexToRgba(s.color, 0.5);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(ground.x, ground.y);
+    ctx.lineTo(c.x, c.y);
+    ctx.stroke();
+
+    const grad = ctx.createRadialGradient(
+      c.x - radius * 0.35, c.y - radius * 0.35, radius * 0.1,
+      c.x, c.y, radius
+    );
+    grad.addColorStop(0, `rgba(255, 255, 255, ${EQ3D_OPACITY})`);
+    grad.addColorStop(0.35, hexToRgba(s.color, EQ3D_OPACITY));
+    grad.addColorStop(1, hexToRgba(s.color, EQ3D_OPACITY * 0.6));
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function pickQuakeSphere(point) {
+  let best = null;
+  let bestScore = 1;
+  for (const { s, c, radius } of projectQuakeSpheres()) {
+    const score = c.dist(point) / Math.max(radius, 4);
     if (score <= bestScore) { bestScore = score; best = s; }
   }
   return best;
 }
 
 function setEarthquakes3D(on) {
+  if (on && !canProject3D()) {
+    console.warn('3D earthquake view unavailable: MapLibre transform API not found');
+    document.getElementById('ol-earthquakes-3d').checked = false;
+    return;
+  }
   eq3dActive = on;
   map.getContainer().querySelector('.quake-tooltip')?.classList.remove('visible');
-  const vis = on ? 'visible' : 'none';
-  map.setLayoutProperty('earthquakes-3d', 'visibility', vis);
-  map.setLayoutProperty('earthquakes-3d-stalk', 'visibility', vis);
   map.setLayoutProperty('earthquakes-circle', 'visibility', on ? 'none' : 'visible');
+  eq3dCanvas.style.display = on ? 'block' : 'none';
 
   if (on) {
-    if (eqData) map.getSource('earthquakes-3d')?.setData(buildEarthquakeSpheres(eqData));
+    if (eqData) buildEarthquakeSpheres(eqData);
     eq3dPrevView = { globe: isGlobe, pitch: map.getPitch() };
     setBaseLayer('satellite');
     setGlobe(true);
