@@ -53,7 +53,21 @@ export async function fetchElevation(lat, lng) {
   );
   if (!res.ok) throw new Error(`Elevation API error: ${res.status}`);
   const data = await res.json();
-  return data.elevation?.[0] ?? null;
+  const elevation = data.elevation?.[0] ?? null;
+
+  // Open-Meteo returns 0 over water; GEBCO bathymetry (via worker/index.js) gives the depth
+  if (elevation === 0) {
+    const depth = await fetchDepth(lat, lng).catch(() => null);
+    if (depth != null && depth < 0) return depth;
+  }
+  return elevation;
+}
+
+async function fetchDepth(lat, lng) {
+  const res = await fetch(`/api/depth?lat=${lat}&lng=${lng}`);
+  if (!res.ok) throw new Error(`Depth API error: ${res.status}`);
+  const data = await res.json();
+  return data.elevation ?? null;
 }
 
 // ── Reverse Geocoding (Nominatim / OpenStreetMap) ───────

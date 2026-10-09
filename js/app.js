@@ -49,12 +49,6 @@ const BASE_LAYERS = {
     attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
     maxzoom: 19
   },
-  dark: {
-    tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'],
-    tileSize: 256,
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a>, &copy; OSM contributors',
-    maxzoom: 20
-  },
   ocean: {
     tiles: ['https://tiles.arcgis.com/tiles/C8EMgrsFcRFL6LrL/arcgis/rest/services/GEBCO_basemap_NCEI/MapServer/tile/{z}/{y}/{x}'],
     tileSize: 256,
@@ -65,7 +59,7 @@ const BASE_LAYERS = {
 
 // ── Initialize Map ──────────────────────────────────────
 function initMap() {
-  const defaultBase = BASE_LAYERS.streets;
+  const defaultBase = BASE_LAYERS.satellite;
 
   map = new maplibregl.Map({
     container: 'map',
@@ -76,14 +70,12 @@ function initMap() {
         'base-streets':   { type: 'raster', tiles: BASE_LAYERS.streets.tiles,   tileSize: 256, attribution: BASE_LAYERS.streets.attribution,   maxzoom: BASE_LAYERS.streets.maxzoom },
         'base-topo':      { type: 'raster', tiles: BASE_LAYERS.topo.tiles,      tileSize: 256, attribution: BASE_LAYERS.topo.attribution,      maxzoom: BASE_LAYERS.topo.maxzoom },
         'base-satellite': { type: 'raster', tiles: BASE_LAYERS.satellite.tiles, tileSize: 256, attribution: BASE_LAYERS.satellite.attribution, maxzoom: BASE_LAYERS.satellite.maxzoom },
-        'base-dark':      { type: 'raster', tiles: BASE_LAYERS.dark.tiles,      tileSize: 256, attribution: BASE_LAYERS.dark.attribution,      maxzoom: BASE_LAYERS.dark.maxzoom },
         'base-ocean':     { type: 'raster', tiles: BASE_LAYERS.ocean.tiles,     tileSize: 256, attribution: BASE_LAYERS.ocean.attribution,     maxzoom: BASE_LAYERS.ocean.maxzoom },
       },
       layers: [
-        { id: 'layer-streets',   type: 'raster', source: 'base-streets',   layout: { visibility: 'visible' } },
+        { id: 'layer-streets',   type: 'raster', source: 'base-streets',   layout: { visibility: 'none' } },
         { id: 'layer-topo',      type: 'raster', source: 'base-topo',      layout: { visibility: 'none' } },
-        { id: 'layer-satellite', type: 'raster', source: 'base-satellite', layout: { visibility: 'none' } },
-        { id: 'layer-dark',      type: 'raster', source: 'base-dark',      layout: { visibility: 'none' } },
+        { id: 'layer-satellite', type: 'raster', source: 'base-satellite', layout: { visibility: 'visible' } },
         { id: 'layer-ocean',     type: 'raster', source: 'base-ocean',     layout: { visibility: 'none' } },
       ]
     },
@@ -537,8 +529,10 @@ async function handleMapClick(e) {
   const cc = data.place?.countryCode;
   const flag = cc ? countryFlag(cc) : '';
   const title = data.place?.display || 'Unknown Location';
-  const subtitle = `${lat.toFixed(5)}°, ${lng.toFixed(5)}°` +
-    (data.elevation != null ? ` · ${Math.round(data.elevation)}m` : '');
+  const elevText = data.elevation == null ? ''
+    : data.elevation < 0 ? ` · ${Math.abs(Math.round(data.elevation))}m deep`
+    : ` · ${Math.round(data.elevation)}m`;
+  const subtitle = `${lat.toFixed(5)}°, ${lng.toFixed(5)}°` + elevText;
   updateHeader(title, subtitle, flag);
 
   // Render Overview
@@ -571,14 +565,19 @@ async function handleMapClick(e) {
 
 // ── Base Layer Switching ────────────────────────────────
 function setupBaseLayerControls() {
-  const radios = document.querySelectorAll('#base-layers input[type="radio"]');
-  const layerIds = ['layer-streets', 'layer-topo', 'layer-satellite', 'layer-dark', 'layer-ocean'];
+  const buttons = document.querySelectorAll('#basemap-switcher .basemap-option');
+  const layerIds = ['layer-satellite', 'layer-streets', 'layer-topo', 'layer-ocean'];
 
-  radios.forEach(radio => {
-    radio.addEventListener('change', () => {
-      const selected = `layer-${radio.value}`;
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const selected = `layer-${btn.dataset.base}`;
       layerIds.forEach(id => {
         map.setLayoutProperty(id, 'visibility', id === selected ? 'visible' : 'none');
+      });
+      buttons.forEach(b => {
+        const isActive = b === btn;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-checked', String(isActive));
       });
     });
   });
@@ -830,15 +829,24 @@ function setupLayerPanel() {
 }
 
 // ── Profile Panel Close ─────────────────────────────────
+function clearSelectedLocation() {
+  hidePanel();
+  clearSunDirectionLines();
+  if (marker) {
+    marker.remove();
+    marker = null;
+  }
+  currentLat = null;
+  currentLng = null;
+  history.replaceState(null, '', window.location.pathname);
+}
+
 function setupProfilePanel() {
-  document.getElementById('profile-close')?.addEventListener('click', () => {
-    hidePanel();
-    clearSunDirectionLines();
-  });
+  document.getElementById('profile-close')?.addEventListener('click', clearSelectedLocation);
 
   // Escape key closes panel
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hidePanel(); clearSunDirectionLines(); }
+    if (e.key === 'Escape') clearSelectedLocation();
   });
 }
 
@@ -847,17 +855,7 @@ function setupLogoHome() {
   document.getElementById('logo-home')?.addEventListener('click', (e) => {
     e.preventDefault();
 
-    // Close panel and remove marker
-    hidePanel();
-    if (marker) {
-      marker.remove();
-      marker = null;
-    }
-    currentLat = null;
-    currentLng = null;
-
-    // Clear URL hash
-    history.replaceState(null, '', window.location.pathname);
+    clearSelectedLocation();
 
     // Reset map view
     map.flyTo({ center: [0, 25], zoom: 2, duration: 1500 });
