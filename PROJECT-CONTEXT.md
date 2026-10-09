@@ -51,7 +51,7 @@ geo-overlay/
 | **Open-Meteo Air Quality** | `air-quality-api.open-meteo.com/v1/air-quality` | US AQI, EU AQI, PM2.5, PM10, O₃, NO₂, SO₂, CO, dust |
 | **Open-Meteo Elevation** | `api.open-meteo.com/v1/elevation` | Terrain elevation for any lat/lng |
 | **USGS Earthquakes** | `earthquake.usgs.gov/.../2.5_week.geojson` | M2.5+ earthquakes (7 days). Properties: `mag`, `place`, `time`, `alert`, `felt`, `cdi`, `tsunami`, `url` |
-| **NOAA NDBC Buoys** | `ndbc.noaa.gov/data/latest_obs/latest_obs.txt` | Marine buoy observations (via same-origin Cloudflare Pages Function `functions/api/buoys.js` → `/api/buoys`). Fixed-width text parsed into GeoJSON |
+| **NOAA NDBC Buoys** | `ndbc.noaa.gov/data/latest_obs/latest_obs.txt` | Marine buoy observations (via same-origin Cloudflare Worker `worker/index.js` → `/api/buoys`). Fixed-width text parsed into GeoJSON |
 | **Nominatim** | `nominatim.openstreetmap.org/reverse` | Reverse geocoding → place name + `country_code` |
 | **flagcdn.com** | `flagcdn.com/24x18/{cc}.png` | Country flag images (Windows doesn't support flag emoji via regional indicators) |
 | **RainViewer** | `api.rainviewer.com/public/weather-maps.json` | Real-time rain/weather radar tile timestamps. Tiles served from `tilecache.rainviewer.com` |
@@ -182,7 +182,7 @@ d8b2846 Initial commit: GeoInsight Earth Explorer
 
 1. **MapLibre GL v5 promises** — Never use callback pattern for `getClusterExpansionZoom`, `getClusterChildren`, etc. They return Promises.
 2. **Windows flag emoji** — Don't try emoji regional indicators. Always use `flagcdn.com` images.
-3. **NDBC proxy** — NDBC sends no CORS headers, so buoy data goes through `/api/buoys` (Cloudflare Pages Function). Plain static servers won't serve it locally; use `npx wrangler pages dev .`. (`corsproxy.io` was dropped after it began requiring an API key → 403.)
+3. **NDBC proxy** — NDBC sends no CORS headers, so buoy data goes through `/api/buoys` (Cloudflare Worker, configured in `wrangler.jsonc`; static files served as Worker assets, exclusions in `.assetsignore`). Plain static servers won't serve it locally; use `npx wrangler dev`. (`corsproxy.io` was dropped after it began requiring an API key → 403.)
 4. **Nominatim rate limit** — 1 request/second max. The app uses `User-Agent: GeoInsight-EarthExplorer/1.0`.
 5. **No build step** — No bundler, no TypeScript, no package.json. Files served directly.
 6. **EQ popup properties** — `felt` ranges from 0 to ~200,000. `alert` is one of: green, yellow, orange, red. `cdi` is Community Decimal Intensity (1-10 scale).

@@ -115,7 +115,7 @@ export async function fetchEarthquakes(forceRefresh = false) {
 let buoyCache = { data: null, timestamp: 0 };
 const BUOY_CACHE_TTL = 30 * 60 * 1000; // 30 min (data is hourly)
 
-// Served by functions/api/buoys.js (Cloudflare Pages Function)
+// Served by worker/index.js (Cloudflare Worker)
 const BUOYS_ENDPOINT = '/api/buoys';
 
 export async function fetchBuoys() {

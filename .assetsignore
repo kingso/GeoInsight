@@ -1,0 +1,10 @@
+.git
+.github
+.vscode
+.wrangler
+node_modules
+worker
+wrangler.jsonc
+.assetsignore
+.gitignore
+*.md

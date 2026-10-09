@@ -1,7 +1,8 @@
-// Cloudflare Pages Function: same-origin proxy for NDBC (which sends no CORS headers)
+// Static files are served from assets first; only unmatched requests reach this Worker.
 const NDBC_LATEST_OBS = 'https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt';
 
-export async function onRequestGet() {
+async function handleBuoys() {
+  // NDBC sends no CORS headers, so the browser can't fetch it directly
   const upstream = await fetch(NDBC_LATEST_OBS, {
     cf: { cacheTtl: 600, cacheEverything: true }
   });
@@ -17,3 +18,15 @@ export async function onRequestGet() {
     }
   });
 }
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/buoys' && request.method === 'GET') {
+      return handleBuoys();
+    }
+
+    return new Response('Not found', { status: 404 });
+  }
+};
