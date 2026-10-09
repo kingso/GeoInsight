@@ -1103,7 +1103,7 @@ function drawQuakeSpheres() {
     ctx.beginPath();
     ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.strokeStyle = hexToRgba(s.color, 0.85);
     ctx.lineWidth = 1;
     ctx.stroke();
   }
