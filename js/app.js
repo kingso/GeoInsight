@@ -1043,7 +1043,7 @@ function globeCamera() {
   const c = map.getCenter();
   const f = sub(globeVector(c.lng, c.lat, 0), cam);
   const len = Math.hypot(...f);
-  return { pos: [cam[0], cam[1], cam[2]], forward: [f[0] / len, f[1] / len, f[2] / len], centerDepth: len };
+  return { pos: [cam[0], cam[1], cam[2]], forward: [f[0] / len, f[1] / len, f[2] / len] };
 }
 
 // Distance in front of the camera, or null if behind it or hidden by the globe
@@ -1076,9 +1076,8 @@ function projectQuakeSpheres() {
     }
     const c = projectAtAltitude(s.lng, s.lat, s.centre);
     if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) continue;
-    // Same pixel size as the 2D circle at the view centre; nearer/farther spheres scale for depth
-    const perspective = camera ? Math.min(Math.max(camera.centerDepth / depth, 0.5), 1.5) : 1;
-    const radius = eqRadiusPx(s.props.mag) * perspective;
+    // Same fixed pixel size as the 2D circles, regardless of zoom
+    const radius = eqRadiusPx(s.props.mag);
     const ground = projectAtAltitude(s.lng, s.lat, 0);
     out.push({ s, c, radius, ground: groundVisible ? ground : null, depth, sortY: ground.y });
   }
