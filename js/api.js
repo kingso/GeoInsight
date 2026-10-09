@@ -218,6 +218,94 @@ export async function fetchTectonicPlates() {
   return data;
 }
 
+let countriesRequest = null;
+
+export async function fetchCountries() {
+  if (!countriesRequest) {
+    countriesRequest = (async () => {
+      const response = await fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_50m_admin_0_countries.geojson');
+      if (!response.ok) throw new Error(`Countries fetch error: ${response.status}`);
+      const data = await response.json();
+      if (data.type !== 'FeatureCollection' || !Array.isArray(data.features)) {
+        throw new Error('Invalid country boundaries');
+      }
+      const boundaries = {
+        type: 'FeatureCollection',
+        features: data.features.map(feature => ({
+          type: 'Feature',
+          geometry: feature.geometry,
+          properties: {
+            name_en: feature.properties.NAME_EN,
+            iso_a3: feature.properties.ISO_A3_EH,
+            admin_a3: feature.properties.ADM0_A3,
+            sovereign_a3: feature.properties.SOV_A3,
+            sovereign_name: feature.properties.SOVEREIGNT,
+            labelrank: feature.properties.LABELRANK,
+            label_x: feature.properties.LABEL_X,
+            label_y: feature.properties.LABEL_Y
+          }
+        }))
+      };
+      const labels = {
+        type: 'FeatureCollection',
+        features: boundaries.features
+          .filter(feature => feature.properties.name_en && Number.isFinite(feature.properties.label_x) && Number.isFinite(feature.properties.label_y))
+          .map(feature => ({
+            type: 'Feature',
+            properties: feature.properties,
+            geometry: { type: 'Point', coordinates: [feature.properties.label_x, feature.properties.label_y] }
+          }))
+      };
+      return { boundaries, labels };
+    })().catch(error => {
+      countriesRequest = null;
+      throw error;
+    });
+  }
+  return countriesRequest;
+}
+
+let countryMetadataRequest = null;
+const countryIndicatorRequests = new Map();
+
+export async function fetchCountryStats(isoCode) {
+  if (!/^[A-Z]{3}$/.test(isoCode)) return { metadata: null, indicators: [], errors: [] };
+  if (!countryMetadataRequest) {
+    countryMetadataRequest = (async () => {
+      const response = await fetch('https://raw.githubusercontent.com/mledoze/countries/master/countries.json', { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`Country metadata error: ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error('Invalid country metadata');
+      return data;
+    })().catch(error => {
+      countryMetadataRequest = null;
+      throw error;
+    });
+  }
+  if (!countryIndicatorRequests.has(isoCode)) {
+    const request = (async () => {
+      const indicators = 'SP.POP.TOTL;AG.SRF.TOTL.K2;EN.POP.DNST;NY.GDP.PCAP.CD';
+      const url = new URL(`https://api.worldbank.org/v2/country/${isoCode}/indicator/${indicators}`);
+      url.search = new URLSearchParams({ format: 'json', source: '2', mrnev: '1', per_page: '100' });
+      const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`World Bank error: ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data) || (data[1] !== null && !Array.isArray(data[1]))) throw new Error('Invalid World Bank response');
+      return (data[1] || []).filter(record => record.countryiso3code === isoCode && Number.isFinite(record.value));
+    })().catch(error => {
+      countryIndicatorRequests.delete(isoCode);
+      throw error;
+    });
+    countryIndicatorRequests.set(isoCode, request);
+  }
+  const [metadata, indicators] = await Promise.allSettled([countryMetadataRequest, countryIndicatorRequests.get(isoCode)]);
+  return {
+    metadata: metadata.status === 'fulfilled' ? metadata.value.find(country => country.cca3 === isoCode) || null : null,
+    indicators: indicators.status === 'fulfilled' ? indicators.value : [],
+    errors: [metadata.status === 'rejected' ? 'Country metadata' : null, indicators.status === 'rejected' ? 'World Bank' : null].filter(Boolean)
+  };
+}
+
 // ── Fetch all location data in parallel ─────────────────
 export async function fetchAllLocationData(lat, lng) {
   const [weather, airQuality, elevation, place] = await Promise.allSettled([

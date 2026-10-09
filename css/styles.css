@@ -272,6 +272,44 @@ body {
 }
 .control-content.open { display: block; }
 
+.control-content { max-height: calc(100dvh - 76px); overflow-y: auto; }
+
+#map.is-measuring .maplibregl-canvas { cursor: crosshair !important; }
+#map.is-measuring .quake-tooltip { display: none; }
+#measure-toolbar {
+  position: fixed;
+  top: 68px;
+  left: 12px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+#measure-toolbar[hidden] { display: none; }
+#measure-total { min-width: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+#measure-toolbar button {
+  flex: 0 0 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+#measure-toolbar button:disabled { opacity: 0.4; cursor: default; }
+#measure-toolbar button:focus-visible { outline: 2px solid var(--accent); }
+
+@media (max-width: 640px) {
+  #layer-panel:has(.control-content.open) + #measure-toolbar { display: none; }
+}
+
 @keyframes fadeSlideDown {
   from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -923,6 +961,34 @@ body {
 .maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: #ffffff;
 }
+
+.country-popup.maplibregl-popup {
+  display: block;
+  max-width: min(340px, calc(100vw - 24px)) !important;
+}
+.country-popup .maplibregl-popup-content {
+  width: min(310px, calc(100vw - 56px));
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  color: #18252a;
+}
+.country-profile { display: flex; flex-direction: column; }
+.country-drag-handle { position: relative; flex: 0 0 auto; padding: 16px 20px; border-bottom: 1px solid #dce4e5; cursor: grab; touch-action: none; user-select: none; }
+.country-drag-handle.is-dragging { cursor: grabbing; }
+.country-drag-handle:focus-visible { outline: 2px solid #087b71; outline-offset: -2px; }
+.country-profile h3 { margin: 0 28px 0 0; font-size: 17px; overflow-wrap: anywhere; }
+.country-popup-body { min-height: 0; padding: 12px 20px 16px; overflow-y: auto; overscroll-behavior: contain; }
+.country-stats dl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 8px 12px; margin: 0; }
+.country-stats dt { color: #526066; }
+.country-stats dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+.country-stats small { display: block; font-size: 10px; font-weight: 400; }
+.country-profile a { color: #087b71; }
+.country-source, .country-related { font-size: 11px; color: #526066; margin: 10px 0 0; overflow-wrap: anywhere; }
+.country-associated-toggle { display: flex; align-items: center; gap: 8px; border-top: 1px solid #dce4e5; padding-top: 10px; margin-top: 12px; cursor: pointer; }
+.country-associated-toggle input { flex: 0 0 auto; accent-color: #087b71; }
+.country-retry { margin-top: 8px; padding: 5px 10px; background: #f1f5f4; color: #075e56; border: 1px solid #b3cfca; border-radius: 4px; cursor: pointer; }
 
 /* ---------- Earthquake Meta (timestamp + refresh) ---------- */
 .eq-meta {

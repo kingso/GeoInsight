@@ -14,6 +14,7 @@ Switch between four base map styles from the bar at the bottom of the screen:
 - **Ocean** (GEBCO/NCEI bathymetry)
 
 ### 📊 Data Overlays
+- **🌐 Countries** — English country names and outlined borders from Natural Earth v5.1.2 (1:50m), available over any base map in 2D or globe mode. The public-domain dataset includes countries and territories; boundaries are generalized, may be disputed, and are not a statement of sovereignty. Labels use dedicated placement points and collision handling. Data loads on first use and is cached for the session.
 - **🔴 Earthquakes** — M2.5+ earthquakes from the past 7 days (USGS). Auto-refreshes every 5 minutes with desktop notifications for new quakes. Color-coded by depth, sized by magnitude. Hover for a quick magnitude/depth tag.
   - **🔮 3D depth view** — switches to satellite + globe and shows each quake as a sphere floating above the surface: height = depth (relative to the deepest quake shown), size = magnitude.
 - **🚢 NOAA Buoys** — Real-time marine buoy observations with wave height, water temp, wind, and pressure. Clustered at low zoom levels.
@@ -22,8 +23,25 @@ Switch between four base map styles from the bar at the bottom of the screen:
 - **🌊 Bathymetry** — Ocean depth overlay (GEBCO).
 - **📡 Rain Radar** — Real-time precipitation radar (RainViewer).
 
+### Country Selection
+With Countries enabled, clicking land selects a country instead of placing a location pin or opening the location profile. All parts of its Natural Earth geometry are highlighted, including offshore regions. The popup's **Include associated territories** checkbox adds lighter fills and dashed outlines for other features in the same Natural Earth sovereignty group, with their names listed separately. These associations are dataset classifications, not legal determinations.
+
+The popup loads capital, languages, and currency from the open [mledoze/countries dataset](https://github.com/mledoze/countries), plus population, surface area, population density (per land area), and GDP per capita in current USD from the [World Bank](https://data.worldbank.org/). Each indicator links to its source and observation year; metadata is explicitly undated. Values may have different years and geographic coverage across sources. Associated-territory highlighting does not aggregate statistics. Successful requests are cached for the page session; missing records are marked unavailable and failed requests can be retried.
+
+Ocean clicks, Escape, or closing the popup clear selection. Disabling Countries restores location pins. Measure Distance takes priority over country selection. Country stats open in a floating panel on the opposite side of the map from the click. Drag the header with a mouse or touch, or focus it and use the arrow keys (Shift for larger steps), to reposition the panel. It stays in place while the map moves and is kept inside the map bounds. Statistics scroll independently so the header and close button remain accessible on smaller screens.
+
+### US States
+Enable **US States** beneath Countries, or use **Show states** in the United States panel. Both controls share one setting. The overlay covers the 50 states plus Washington, DC with English labels and Census 2024 generalized 1:5m boundaries; territories remain separate country/territory selections. Clicking a state highlights it and opens the same draggable panel. Clicks outside the US still select countries, disabling States restores US country selection, and disabling Countries also turns States off. Measure Distance retains priority.
+
+State panels include capital (or DC's federal seat), abbreviation, land and total area, population, calculated population density, and median household income. Population and income use Census ACS **2020-2024 five-year estimates**, served by [Census Reporter](https://censusreporter.org/), with reported 90% margins of error; income is in inflation-adjusted 2024 USD. Area comes from the 2024 Census boundaries and capitals are reference metadata. These are dated estimates, not live counts.
+
+State statistics require the existing Cloudflare Worker: `GET /api/us-state?fips=06` validates the FIPS code, queries a fixed Census Reporter endpoint with a project-specific User-Agent, and caches successful responses for a day. No Census API key is required. Missing estimates are marked unavailable; failed requests offer retry. Boundaries load on first use and are cached for the page session.
+
+### Tools
+**Measure Distance**, below Weather in the layer menu, measures a multi-point path in kilometres and miles. Enable it and click successive points on the map. Undo removes the last point; Clear starts a new measurement; Close, Escape, or disabling the tool exits measurement mode. It works in 2D and globe mode using Turf geodesic distances and great-circle lines, including dateline crossings. Distances approximate the Earth's surface, not road routes or terrain elevation. The tool loads pinned Turf modules from esm.sh; the rest of the map remains available if that dependency fails.
+
 ### 📍 Location Profiles
-Click anywhere on the map to open a detailed profile panel with four tabs:
+With Countries and Measure Distance off, click anywhere on the map to open a detailed profile panel with four tabs:
 
 | Tab | Content |
 |-----|---------|

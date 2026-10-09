@@ -36,6 +36,14 @@
     <div id="layer-content" class="control-content">
       <h3>Overlays</h3>
       <div class="layer-group" id="overlay-layers">
+        <label class="layer-option" title="English country names and Natural Earth boundaries">
+          <input type="checkbox" id="ol-countries" disabled>
+          <span class="layer-label">🌐 Countries</span>
+        </label>
+        <label class="layer-option layer-sub hidden" id="us-states-option" title="50 US states and Washington, DC">
+          <input type="checkbox" id="ol-us-states">
+          <span class="layer-label">US States</span>
+        </label>
         <label class="layer-option">
           <input type="checkbox" id="ol-earthquakes">
           <span class="layer-label">🔴 Earthquakes (7 days)</span>
@@ -73,7 +81,21 @@
           <span class="layer-label">📡 Rain Radar</span>
         </label>
       </div>
+      <h3>Tools</h3>
+      <div class="layer-group" id="tool-layers">
+        <label class="layer-option">
+          <input type="checkbox" id="tool-measure-distance" disabled>
+          <span class="layer-label">📏 Measure Distance</span>
+        </label>
+      </div>
     </div>
+  </div>
+
+  <div id="measure-toolbar" role="group" aria-label="Distance measurement" hidden>
+    <output id="measure-total" aria-live="polite">0 km / 0 mi</output>
+    <button id="measure-undo" type="button" title="Undo last point" aria-label="Undo last point" disabled>&#8630;</button>
+    <button id="measure-clear" type="button" title="Clear measurement" aria-label="Clear measurement" disabled>&#9003;</button>
+    <button id="measure-stop" type="button" title="Close measurement" aria-label="Close measurement">&times;</button>
   </div>
 
   <!-- Profile Panel (right side, slides in) -->

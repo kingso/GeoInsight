@@ -3,8 +3,9 @@
    Map initialization, layer management, interaction handling
    ========================================================= */
 
-import { fetchAllLocationData, fetchEarthquakes, fetchBuoys, fetchTectonicPlates, getWeatherInfo } from './api.js';
+import { fetchAllLocationData, fetchEarthquakes, fetchBuoys, fetchTectonicPlates, fetchCountries, getWeatherInfo } from './api.js';
 import { sunCoords, toDays, RAD } from './sun-chart.js';
+import { setupCountrySelection } from './countries.js';
 import {
   initTabs, showPanel, hidePanel, updateHeader,
   setLoading, setError,
@@ -21,6 +22,7 @@ let buoysLoaded = false;
 let eqRefreshInterval = null;
 let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
 let platesLoaded = false;
+let countriesLoaded = false;
 let terminatorInterval = null;
 let sunLinesVisible = false;
 let isGlobe = false;
@@ -28,6 +30,13 @@ let eqData = null;          // latest USGS FeatureCollection
 let eq3dActive = false;
 let eq3dPrevView = null;    // { globe, pitch } to restore when leaving 3D view
 let refreshQuakeHover = () => {};  // set once the map has loaded
+let distanceTool = null;
+let countrySelection = null;
+let locationRequest = 0;
+
+function countriesActive() {
+  return document.getElementById('ol-countries').checked;
+}
 
 // ── Weather / Radar State ───────────────────────────────
 let rainviewerTimestamp = null;
@@ -169,6 +178,7 @@ function initMap() {
 
     // Earthquake click popup
     map.on('click', 'earthquakes-circle', (e) => {
+      if (distanceTool?.active || countriesActive()) return;
       e.originalEvent.stopPropagation();
       const coords = e.features[0].geometry.coordinates;
       showQuakePopup(e.features[0].properties, coords[0], coords[1]);
@@ -200,7 +210,7 @@ function initMap() {
     // One hover path for 2D circles and 3D spheres (spheres float above their footprint)
     const updateQuakeHover = () => {
       let props = null;
-      if (hoverPoint) {
+      if (hoverPoint && !countriesActive()) {
         if (eq3dActive) {
           props = pickQuakeSphere(hoverPoint)?.props ?? null;
         } else if (map.getLayoutProperty('earthquakes-circle', 'visibility') === 'visible') {
@@ -312,6 +322,7 @@ function initMap() {
 
     // Buoy click popup
     map.on('click', 'buoys-point', (e) => {
+      if (distanceTool?.active || countriesActive()) return;
       e.originalEvent.stopPropagation();
       const p = e.features[0].properties;
       const coords = e.features[0].geometry.coordinates;
@@ -350,6 +361,7 @@ function initMap() {
 
     // Cluster click → zoom in
     map.on('click', 'buoys-clusters', async (e) => {
+      if (distanceTool?.active || countriesActive()) return;
       e.originalEvent.stopPropagation();
       const features = map.queryRenderedFeatures(e.point, { layers: ['buoys-clusters'] });
       if (!features.length) return;
@@ -510,6 +522,56 @@ function initMap() {
       paint: { 'raster-opacity': 0.7 }
     });
 
+    map.addSource('countries', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+      attribution: '<a href="https://www.naturalearthdata.com/">Natural Earth</a> (public domain)'
+    });
+    map.addSource('country-labels', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+    map.addLayer({
+      id: 'country-borders-halo', type: 'line', source: 'countries',
+      layout: { visibility: 'none' },
+      paint: { 'line-color': '#111827', 'line-width': 3.5, 'line-opacity': 0.65 }
+    });
+    map.addLayer({
+      id: 'country-borders', type: 'line', source: 'countries',
+      layout: { visibility: 'none' },
+      paint: {
+        'line-color': '#f8fafc',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 5, 1.2, 10, 2],
+        'line-opacity': 0.85
+      }
+    });
+    map.addLayer({
+      id: 'country-names', type: 'symbol', source: 'country-labels',
+      layout: {
+        visibility: 'none',
+        'text-field': ['get', 'name_en'],
+        'text-font': ['Open Sans Semibold'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 0, 10, 3, 13, 6, 17],
+        'text-max-width': 9,
+        'text-padding': 6,
+        'text-allow-overlap': false,
+        'symbol-sort-key': ['get', 'labelrank']
+      },
+      paint: { 'text-color': '#ffffff', 'text-halo-color': '#111827', 'text-halo-width': 1.5 }
+    });
+    countrySelection = setupCountrySelection(map);
+    document.getElementById('ol-countries').disabled = false;
+
+    import('./measure-distance.js').then(({ setupDistanceTool }) => {
+      distanceTool = setupDistanceTool(map, () => {
+        clearSelectedLocation();
+        countrySelection.clear();
+      });
+    }).catch((error) => {
+      console.error('Distance tool unavailable:', error);
+      document.getElementById('tool-measure-distance').closest('label').title = 'Distance tool unavailable. Reload to retry.';
+    });
+
     // Check URL hash for initial location
     loadFromHash();
   });
@@ -517,6 +579,16 @@ function initMap() {
 
 // ── Handle Map Click ────────────────────────────────────
 async function handleMapClick(e) {
+  if (distanceTool?.active) {
+    if (e.point && e.originalEvent?.detail !== 2 && map.project(e.lngLat).dist(e.point) < 1) {
+      distanceTool.addPoint(e.lngLat);
+    }
+    return;
+  }
+  if (countriesActive()) {
+    countrySelection?.handleClick(e);
+    return;
+  }
   // Skip if click hit an overlay feature (earthquake, buoy, etc.)
   if (e.point && eq3dActive) {
     const hit = pickQuakeSphere(e.point);
@@ -535,6 +607,7 @@ async function handleMapClick(e) {
   }
 
   const { lat, lng } = e.lngLat;
+  const request = ++locationRequest;
   currentLat = lat;
   currentLng = lng;
 
@@ -563,6 +636,7 @@ async function handleMapClick(e) {
 
   // Fetch all data
   const data = await fetchAllLocationData(lat, lng);
+  if (request !== locationRequest) return;
   data.lat = lat;
   data.lng = lng;
 
@@ -738,6 +812,44 @@ function setupOverlayControls() {
     }
   });
 
+  const countriesToggle = document.getElementById('ol-countries');
+  const countryLayers = ['country-borders-halo', 'country-borders', 'country-names'];
+  countriesToggle?.addEventListener('change', async () => {
+    countrySelection.setEnabled(countriesToggle.checked);
+    refreshQuakeHover();
+    if (countriesToggle.checked) {
+      clearSelectedLocation();
+      map.getContainer().querySelectorAll('.maplibregl-popup-close-button').forEach(button => button.click());
+    }
+    const label = countriesToggle.closest('label');
+    const text = label.querySelector('.layer-label');
+    if (countriesToggle.checked && !countriesLoaded) {
+      text.textContent = 'Loading countries...';
+      label.setAttribute('aria-busy', 'true');
+      try {
+        const { boundaries, labels } = await fetchCountries();
+        if (!countriesLoaded) {
+          map.getSource('countries').setData(boundaries);
+          map.getSource('country-labels').setData(labels);
+          countrySelection.setData(boundaries);
+          countriesLoaded = true;
+        }
+        label.title = 'English country names and Natural Earth boundaries';
+      } catch (error) {
+        console.error('Failed to load countries:', error);
+        countriesToggle.checked = false;
+        countrySelection.setEnabled(false);
+        label.title = 'Could not load countries. Toggle to retry.';
+        text.textContent = 'Countries unavailable - retry';
+        return;
+      } finally {
+        label.removeAttribute('aria-busy');
+      }
+    }
+    if (countriesLoaded) text.textContent = '🌐 Countries';
+    countryLayers.forEach(id => map.setLayoutProperty(id, 'visibility', countriesToggle.checked ? 'visible' : 'none'));
+  });
+
   // Tectonic Plates toggle
   const platesToggle = document.getElementById('ol-plates');
 
@@ -881,6 +993,7 @@ function setupLayerPanel() {
 
 // ── Profile Panel Close ─────────────────────────────────
 function clearSelectedLocation() {
+  locationRequest++;
   hidePanel();
   clearSunDirectionLines();
   if (marker) {
@@ -897,7 +1010,11 @@ function setupProfilePanel() {
 
   // Escape key closes panel
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') clearSelectedLocation();
+    if (e.key === 'Escape') {
+      distanceTool?.stop();
+      countrySelection?.clear();
+      clearSelectedLocation();
+    }
   });
 }
 
@@ -906,6 +1023,8 @@ function setupLogoHome() {
   document.getElementById('logo-home')?.addEventListener('click', (e) => {
     e.preventDefault();
 
+    distanceTool?.stop();
+    countrySelection?.clear();
     clearSelectedLocation();
 
     // Reset map view
