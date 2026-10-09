@@ -801,7 +801,6 @@ body {
 .quake-tooltip.visible { display: flex; }
 .quake-tag {
   --tag-bg: #16a34a;
-  display: flex;
   align-items: baseline;
   gap: 6px;
   padding: 5px 11px;

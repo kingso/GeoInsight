@@ -1064,6 +1064,7 @@ function globeVisibleDepth(camera, p) {
 function projectQuakeSpheres() {
   const out = [];
   const camera = globeCamera();
+  const zoomScale = Math.max(1, Math.min(3, 2 ** ((map.getZoom() - 2) / 3)));
   for (const s of eqSpheres) {
     let depth = 0;
     let groundVisible = true;
@@ -1076,8 +1077,7 @@ function projectQuakeSpheres() {
     }
     const c = projectAtAltitude(s.lng, s.lat, s.centre);
     if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) continue;
-    // Same fixed pixel size as the 2D circles, regardless of zoom
-    const radius = eqRadiusPx(s.props.mag);
+    const radius = eqRadiusPx(s.props.mag) * zoomScale;
     const ground = projectAtAltitude(s.lng, s.lat, 0);
     out.push({ s, c, radius, ground: groundVisible ? ground : null, depth, sortY: ground.y });
   }
