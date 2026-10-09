@@ -115,8 +115,8 @@ export async function fetchEarthquakes(forceRefresh = false) {
 let buoyCache = { data: null, timestamp: 0 };
 const BUOY_CACHE_TTL = 30 * 60 * 1000; // 30 min (data is hourly)
 
-const CORS_PROXY = 'https://corsproxy.io/?';
-const NDBC_LATEST_OBS = 'https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt';
+// Served by functions/api/buoys.js (Cloudflare Pages Function)
+const BUOYS_ENDPOINT = '/api/buoys';
 
 export async function fetchBuoys() {
   const now = Date.now();
@@ -124,7 +124,7 @@ export async function fetchBuoys() {
     return buoyCache.data;
   }
 
-  const res = await fetch(CORS_PROXY + encodeURIComponent(NDBC_LATEST_OBS));
+  const res = await fetch(BUOYS_ENDPOINT);
   if (!res.ok) throw new Error(`NDBC API error: ${res.status}`);
   const text = await res.text();
 
