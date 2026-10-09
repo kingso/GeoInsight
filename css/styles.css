@@ -40,6 +40,8 @@ body {
   z-index: 0;
 }
 
+#map.is-globe { background: #000; }
+
 .maplibregl-ctrl-attrib { font-size: 11px !important; }
 
 /* ---------- Logo / Home Button ---------- */

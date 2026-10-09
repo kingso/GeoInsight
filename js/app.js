@@ -850,6 +850,7 @@ function updateTerminator() {
 function setGlobe(on) {
   isGlobe = on;
   map.setProjection(on ? { type: 'globe' } : { type: 'mercator' });
+  map.getContainer().classList.toggle('is-globe', on);
   const btn = document.getElementById('globe-toggle');
   if (!btn) return;
   btn.classList.toggle('active', on);
