@@ -193,6 +193,10 @@ function initMap() {
       else hideQuakeTag();
     });
     map.on('movestart', hideQuakeTag);
+    map.on('mouseout', () => {
+      hideQuakeTag();
+      if (eq3dActive) map.getCanvas().style.cursor = '';
+    });
 
     // Cursor change on earthquake hover
     map.on('mouseenter', 'earthquakes-circle', () => { map.getCanvas().style.cursor = 'pointer'; });
