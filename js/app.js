@@ -24,6 +24,9 @@ let platesLoaded = false;
 let terminatorInterval = null;
 let sunLinesVisible = false;
 let isGlobe = false;
+let eqData = null;          // latest USGS FeatureCollection
+let eq3dActive = false;
+let eq3dPrevView = null;    // { globe, pitch } to restore when leaving 3D view
 
 // ── Weather / Radar State ───────────────────────────────
 let rainviewerTimestamp = null;
@@ -153,45 +156,79 @@ function initMap() {
     // Earthquake click popup
     map.on('click', 'earthquakes-circle', (e) => {
       e.originalEvent.stopPropagation();
-      const props = e.features[0].properties;
       const coords = e.features[0].geometry.coordinates;
-      const time = new Date(props.time);
-      const depthMi = props.depth_mi ?? '?';
-      const depthKm = props.depth_km ?? '?';
-      const magLabel = getMagLabel(props.mag);
-      const depthLabel = getDepthLabel(depthMi);
-
-      const dateStr = time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-      const row = (icon, label, value) =>
-        `<div class="quake-row"><span class="quake-row-label">${icon} ${label}</span><span class="quake-row-value">${value}</span></div>`;
-
-      new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup' })
-        .setLngLat([coords[0], coords[1]])
-        .setHTML(`
-          <div class="quake-popup">
-            <div class="quake-header">
-              <div class="quake-mag" style="background:${getDepthColor(depthKm)}">${props.mag}</div>
-              <div class="quake-title">
-                <h3>${props.place || 'Unknown location'}</h3>
-                <span class="quake-time">${dateStr} at ${timeStr}</span>
-              </div>
-            </div>
-            <div class="quake-details">
-              ${row('📏', 'Magnitude', `<strong>${props.mag}</strong> <span class="quake-badge ${magLabel.cls}">${magLabel.label}</span>`)}
-              ${row('⬇️', 'Depth', `<strong>${depthMi} mi</strong> (${depthKm} km) <span class="quake-badge ${depthLabel.cls}">${depthLabel.label}</span>`)}
-              ${row('📍', 'Coordinates', `${coords[1]?.toFixed(3)}°, ${coords[0]?.toFixed(3)}°`)}
-              ${props.alert ? (() => { const ai = getAlertInfo(props.alert); return ai ? row('🚨', 'Alert Level', `<span class="quake-badge ${ai.cls}">${ai.label}</span>`) : ''; })() : ''}
-              ${props.felt ? row('👥', 'Felt Reports', `<strong>${props.felt}</strong> people`) : ''}
-              ${props.cdi ? row('📊', 'Intensity (CDI)', `<strong>${props.cdi}</strong>`) : ''}
-              ${props.tsunami ? row('🌊', 'Tsunami', '<strong style="color:#ef4444">Warning issued</strong>') : ''}
-            </div>
-            <a class="quake-link" href="${props.url}" target="_blank">View on USGS ↗</a>
-          </div>
-        `)
-        .addTo(map);
+      showQuakePopup(e.features[0].properties, coords[0], coords[1]);
     });
+
+    // 3D earthquake spheres (hidden until "3D depth view" is enabled)
+    map.addSource('earthquakes-3d', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] }
+    });
+    const eqDepthColor = [
+      'interpolate', ['linear'], ['get', 'depth_km'],
+      0,   '#ef4444',
+      20,  '#f97316',
+      70,  '#f59e0b',
+      150, '#eab308',
+      300, '#84cc16',
+      500, '#22c55e',
+      700, '#059669'
+    ];
+    map.addLayer({
+      id: 'earthquakes-3d-stalk',
+      type: 'fill-extrusion',
+      source: 'earthquakes-3d',
+      filter: ['==', ['get', 'part'], 'stalk'],
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-extrusion-color': eqDepthColor,
+        'fill-extrusion-base': ['get', 'base'],
+        'fill-extrusion-height': ['get', 'top'],
+        'fill-extrusion-opacity': 0.35
+      }
+    });
+    map.addLayer({
+      id: 'earthquakes-3d',
+      type: 'fill-extrusion',
+      source: 'earthquakes-3d',
+      filter: ['==', ['get', 'part'], 'ball'],
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-extrusion-color': eqDepthColor,
+        'fill-extrusion-base': ['get', 'base'],
+        'fill-extrusion-height': ['get', 'top'],
+        'fill-extrusion-opacity': 0.9
+      }
+    });
+
+    // Hover tag: magnitude + depth, coloured by magnitude severity
+    const quakeTag = document.createElement('div');
+    quakeTag.className = 'quake-tag quake-tooltip';
+    map.getContainer().appendChild(quakeTag);
+    const showQuakeTag = (p, point) => {
+      const mag = Number(p.mag);
+      const depth = p.depth_km != null ? `${Math.round(p.depth_km)} km deep` : 'depth ?';
+      quakeTag.textContent = `M${mag.toFixed(1)} · ${depth}`;
+      quakeTag.style.background = getMagLabel(mag).color;
+      quakeTag.style.left = `${point.x}px`;
+      quakeTag.style.top = `${point.y}px`;
+      quakeTag.classList.add('visible');
+    };
+    const hideQuakeTag = () => quakeTag.classList.remove('visible');
+    map.on('mousemove', 'earthquakes-circle', (e) => showQuakeTag(e.features[0].properties, e.point));
+    map.on('mouseleave', 'earthquakes-circle', hideQuakeTag);
+    map.on('click', hideQuakeTag);
+
+    // Spheres float above their footprint, so hit-test them at their projected screen position
+    map.on('mousemove', (e) => {
+      if (!eq3dActive) return;
+      const hit = pickQuakeSphere(e.point);
+      map.getCanvas().style.cursor = hit ? 'pointer' : '';
+      if (hit) showQuakeTag(hit.props, e.point);
+      else hideQuakeTag();
+    });
+    map.on('movestart', hideQuakeTag);
 
     // Cursor change on earthquake hover
     map.on('mouseenter', 'earthquakes-circle', () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -484,6 +521,13 @@ function initMap() {
 // ── Handle Map Click ────────────────────────────────────
 async function handleMapClick(e) {
   // Skip if click hit an overlay feature (earthquake, buoy, etc.)
+  if (e.point && eq3dActive) {
+    const hit = pickQuakeSphere(e.point);
+    if (hit) {
+      showQuakePopup(hit.props, hit.lng, hit.lat);
+      return;
+    }
+  }
   if (e.point) {
     const overlayLayers = ['earthquakes-circle', 'buoys-point', 'buoys-clusters', 'buoys-cluster-count'];
     const activeLayers = overlayLayers.filter(id => { try { return !!map.getLayer(id); } catch { return false; } });
@@ -564,22 +608,20 @@ async function handleMapClick(e) {
 }
 
 // ── Base Layer Switching ────────────────────────────────
-function setupBaseLayerControls() {
-  const buttons = document.querySelectorAll('#basemap-switcher .basemap-option');
-  const layerIds = ['layer-satellite', 'layer-streets', 'layer-topo', 'layer-ocean'];
+function setBaseLayer(name) {
+  ['layer-satellite', 'layer-streets', 'layer-topo', 'layer-ocean'].forEach(id => {
+    map.setLayoutProperty(id, 'visibility', id === `layer-${name}` ? 'visible' : 'none');
+  });
+  document.querySelectorAll('#basemap-switcher .basemap-option').forEach(b => {
+    const isActive = b.dataset.base === name;
+    b.classList.toggle('active', isActive);
+    b.setAttribute('aria-checked', String(isActive));
+  });
+}
 
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const selected = `layer-${btn.dataset.base}`;
-      layerIds.forEach(id => {
-        map.setLayoutProperty(id, 'visibility', id === selected ? 'visible' : 'none');
-      });
-      buttons.forEach(b => {
-        const isActive = b === btn;
-        b.classList.toggle('active', isActive);
-        b.setAttribute('aria-checked', String(isActive));
-      });
-    });
+function setupBaseLayerControls() {
+  document.querySelectorAll('#basemap-switcher .basemap-option').forEach(btn => {
+    btn.addEventListener('click', () => setBaseLayer(btn.dataset.base));
   });
 }
 
@@ -592,6 +634,10 @@ function setupOverlayControls() {
   const eqMeta = document.getElementById('eq-meta');
   const eqTimestamp = document.getElementById('eq-timestamp');
   const eqRefreshBtn = document.getElementById('eq-refresh');
+  const eq3dOption = document.getElementById('eq-3d-option');
+  const eq3dToggle = document.getElementById('ol-earthquakes-3d');
+
+  eq3dToggle?.addEventListener('change', () => setEarthquakes3D(eq3dToggle.checked));
 
   // Refresh button click
   eqRefreshBtn?.addEventListener('click', async (e) => {
@@ -619,7 +665,7 @@ function setupOverlayControls() {
       if (!earthquakesLoaded) {
         try {
           const data = await fetchEarthquakes();
-          map.getSource('earthquakes')?.setData(data);
+          setEarthquakeData(data);
           earthquakesLoaded = true;
           // Store all current IDs so first refresh can detect new ones
           eqPreviousIds = new Set(data.features.map(f => f.id ?? f.properties.code));
@@ -634,9 +680,15 @@ function setupOverlayControls() {
         }
       }
       map.setLayoutProperty('earthquakes-circle', 'visibility', 'visible');
+      eq3dOption?.classList.remove('hidden');
       // Start auto-refresh
       startEqAutoRefresh();
     } else {
+      if (eq3dActive) {
+        eq3dToggle.checked = false;
+        setEarthquakes3D(false);
+      }
+      eq3dOption?.classList.add('hidden');
       map.setLayoutProperty('earthquakes-circle', 'visibility', 'none');
       stopEqAutoRefresh();
       eqMeta?.classList.add('hidden');
@@ -798,17 +850,18 @@ function updateTerminator() {
 }
 
 // ── Globe / 2D Toggle ───────────────────────────────────
-function setupGlobeToggle() {
+function setGlobe(on) {
+  isGlobe = on;
+  map.setProjection(on ? { type: 'globe' } : { type: 'mercator' });
   const btn = document.getElementById('globe-toggle');
   if (!btn) return;
+  btn.classList.toggle('active', on);
+  btn.querySelector('.globe-toggle-label').textContent = on ? '2D' : '3D';
+  btn.title = on ? 'Switch to 2D flat map' : 'Switch to 3D Globe';
+}
 
-  btn.addEventListener('click', () => {
-    isGlobe = !isGlobe;
-    map.setProjection(isGlobe ? { type: 'globe' } : { type: 'mercator' });
-    btn.classList.toggle('active', isGlobe);
-    btn.querySelector('.globe-toggle-label').textContent = isGlobe ? '2D' : '3D';
-    btn.title = isGlobe ? 'Switch to 2D flat map' : 'Switch to 3D Globe';
-  });
+function setupGlobeToggle() {
+  document.getElementById('globe-toggle')?.addEventListener('click', () => setGlobe(!isGlobe));
 }
 
 // ── Layer Panel Toggle ──────────────────────────────────
@@ -884,6 +937,160 @@ function loadFromHash() {
   }
 }
 
+// ── Earthquake Popup ────────────────────────────────────
+function showQuakePopup(props, lng, lat) {
+  const time = new Date(props.time);
+  const depthMi = props.depth_mi ?? '?';
+  const depthKm = props.depth_km ?? '?';
+  const magLabel = getMagLabel(props.mag);
+  const depthLabel = getDepthLabel(depthMi);
+
+  const dateStr = time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  const row = (icon, label, value) =>
+    `<div class="quake-row"><span class="quake-row-label">${icon} ${label}</span><span class="quake-row-value">${value}</span></div>`;
+
+  new maplibregl.Popup({ offset: 14, maxWidth: '400px', className: 'geo-popup' })
+    .setLngLat([lng, lat])
+    .setHTML(`
+      <div class="quake-popup">
+        <div class="quake-header">
+          <div class="quake-mag" style="background:${getDepthColor(depthKm)}">${props.mag}</div>
+          <div class="quake-title">
+            <h3>${props.place || 'Unknown location'}</h3>
+            <span class="quake-time">${dateStr} at ${timeStr}</span>
+          </div>
+        </div>
+        <div class="quake-details">
+          ${row('📏', 'Magnitude', `<strong>${props.mag}</strong> <span class="quake-badge ${magLabel.cls}">${magLabel.label}</span>`)}
+          ${row('⬇️', 'Depth', `<strong>${depthMi} mi</strong> (${depthKm} km) <span class="quake-badge ${depthLabel.cls}">${depthLabel.label}</span>`)}
+          ${row('📍', 'Coordinates', `${Number(lat).toFixed(3)}°, ${Number(lng).toFixed(3)}°`)}
+          ${props.alert ? (() => { const ai = getAlertInfo(props.alert); return ai ? row('🚨', 'Alert Level', `<span class="quake-badge ${ai.cls}">${ai.label}</span>`) : ''; })() : ''}
+          ${props.felt ? row('👥', 'Felt Reports', `<strong>${props.felt}</strong> people`) : ''}
+          ${props.cdi ? row('📊', 'Intensity (CDI)', `<strong>${props.cdi}</strong>`) : ''}
+          ${props.tsunami ? row('🌊', 'Tsunami', '<strong style="color:#ef4444">Warning issued</strong>') : ''}
+        </div>
+        <a class="quake-link" href="${props.url}" target="_blank">View on USGS ↗</a>
+      </div>
+    `)
+    .addTo(map);
+}
+
+// ── 3D Earthquake View ──────────────────────────────────
+const EQ3D_MAX_HEIGHT_M = 1_000_000; // deepest quake in the feed floats this high
+const EQ3D_SLICES = 10;
+const EQ3D_SEGMENTS = 24;
+let eqSpheres = [];  // { props, lng, lat, centre, r } for screen-space hit-testing
+
+function setEarthquakeData(data) {
+  eqData = data;
+  map.getSource('earthquakes')?.setData(data);
+  if (eq3dActive) map.getSource('earthquakes-3d')?.setData(buildEarthquakeSpheres(data));
+}
+
+function eqRadiusMeters(mag) {
+  return 12000 * Math.pow(1.55, Math.max(mag ?? 2.5, 2.5) - 2.5);
+}
+
+function circleRing(lng, lat, radiusM) {
+  const dLat = radiusM / 111320;
+  const dLng = dLat / Math.max(Math.cos(lat * Math.PI / 180), 0.01);
+  const ring = [];
+  for (let i = 0; i <= EQ3D_SEGMENTS; i++) {
+    const a = (i / EQ3D_SEGMENTS) * 2 * Math.PI;
+    ring.push([lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)]);
+  }
+  return ring;
+}
+
+// fill-extrusion has no sphere primitive, so each ball is a stack of discs shaped like a sphere
+function buildEarthquakeSpheres(data) {
+  const features = [];
+  const maxDepth = Math.max(1, ...data.features.map(f => f.properties.depth_km ?? 0));
+  eqSpheres = [];
+
+  for (const f of data.features) {
+    const [lng, lat] = f.geometry.coordinates;
+    const p = f.properties;
+    const r = eqRadiusMeters(p.mag);
+    const centre = r + ((p.depth_km ?? 0) / maxDepth) * EQ3D_MAX_HEIGHT_M;
+    const props = {
+      mag: p.mag, depth_km: p.depth_km, depth_mi: p.depth_mi, place: p.place, time: p.time,
+      url: p.url, alert: p.alert, felt: p.felt, cdi: p.cdi, tsunami: p.tsunami, lng, lat
+    };
+    eqSpheres.push({ props, lng, lat, centre, r });
+
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates: [circleRing(lng, lat, Math.max(r * 0.06, 1500))] },
+      properties: { ...props, part: 'stalk', base: 0, top: centre - r }
+    });
+
+    const step = (2 * r) / EQ3D_SLICES;
+    for (let i = 0; i < EQ3D_SLICES; i++) {
+      const z0 = -r + i * step;
+      const zMid = z0 + step / 2;
+      const sliceR = Math.sqrt(r * r - zMid * zMid);
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [circleRing(lng, lat, sliceR)] },
+        properties: { ...props, part: 'ball', base: centre + z0, top: centre + z0 + step }
+      });
+    }
+  }
+  return { type: 'FeatureCollection', features };
+}
+
+// Uses MapLibre's internal transform; the fake terrain supplies each sphere's altitude
+function projectAtAltitude(lng, lat, altitudeM) {
+  const fakeTerrain = {
+    getElevationForLngLatZoom: () => altitudeM,
+    getElevationForLngLat: () => altitudeM
+  };
+  return map.transform.locationToScreenPoint(new maplibregl.LngLat(lng, lat), fakeTerrain);
+}
+
+function pickQuakeSphere(point) {
+  if (typeof map.transform?.locationToScreenPoint !== 'function') {
+    const f = map.queryRenderedFeatures(point, { layers: ['earthquakes-3d'] })[0];
+    return f ? eqSpheres.find(s => s.lng === f.properties.lng && s.lat === f.properties.lat) ?? null : null;
+  }
+
+  let best = null;
+  let bestScore = 1;
+  for (const s of eqSpheres) {
+    if (map.transform.isLocationOccluded?.(new maplibregl.LngLat(s.lng, s.lat))) continue;
+    const c = projectAtAltitude(s.lng, s.lat, s.centre);
+    const edgeLng = s.lng + (s.r / 111320) / Math.max(Math.cos(s.lat * Math.PI / 180), 0.01);
+    const pxRadius = Math.max(c.dist(projectAtAltitude(edgeLng, s.lat, s.centre)), 4);
+    const score = c.dist(point) / pxRadius;
+    if (score <= bestScore) { bestScore = score; best = s; }
+  }
+  return best;
+}
+
+function setEarthquakes3D(on) {
+  eq3dActive = on;
+  map.getContainer().querySelector('.quake-tooltip')?.classList.remove('visible');
+  const vis = on ? 'visible' : 'none';
+  map.setLayoutProperty('earthquakes-3d', 'visibility', vis);
+  map.setLayoutProperty('earthquakes-3d-stalk', 'visibility', vis);
+  map.setLayoutProperty('earthquakes-circle', 'visibility', on ? 'none' : 'visible');
+
+  if (on) {
+    if (eqData) map.getSource('earthquakes-3d')?.setData(buildEarthquakeSpheres(eqData));
+    eq3dPrevView = { globe: isGlobe, pitch: map.getPitch() };
+    setBaseLayer('satellite');
+    setGlobe(true);
+    map.easeTo({ pitch: 55, duration: 1200 });
+  } else if (eq3dPrevView) {
+    setGlobe(eq3dPrevView.globe);
+    map.easeTo({ pitch: eq3dPrevView.pitch, duration: 800 });
+    eq3dPrevView = null;
+  }
+}
+
 // ── Earthquake Helpers ──────────────────────────────────
 function getDepthColor(depthKm) {
   if (depthKm <= 20)  return '#ef4444';
@@ -894,11 +1101,11 @@ function getDepthColor(depthKm) {
 }
 
 function getMagLabel(mag) {
-  if (mag < 4)   return { label: 'Light',    cls: 'badge-light' };
-  if (mag < 5)   return { label: 'Moderate', cls: 'badge-moderate' };
-  if (mag < 6)   return { label: 'Strong',   cls: 'badge-strong' };
-  if (mag < 7)   return { label: 'Major',    cls: 'badge-major' };
-  return            { label: 'Great',    cls: 'badge-great' };
+  if (mag < 4)   return { label: 'Light',    cls: 'badge-light',    color: '#16a34a' };
+  if (mag < 5)   return { label: 'Moderate', cls: 'badge-moderate', color: '#ca8a04' };
+  if (mag < 6)   return { label: 'Strong',   cls: 'badge-strong',   color: '#ea580c' };
+  if (mag < 7)   return { label: 'Major',    cls: 'badge-major',    color: '#dc2626' };
+  return            { label: 'Great',    cls: 'badge-great',    color: '#7c3aed' };
 }
 
 function getDepthLabel(depthMi) {
@@ -1032,7 +1239,7 @@ async function refreshEarthquakes(force = false) {
 
   try {
     const data = await fetchEarthquakes(force);
-    map.getSource('earthquakes')?.setData(data);
+    setEarthquakeData(data);
 
     // Detect new earthquakes
     const currentIds = new Set(data.features.map(f => f.id ?? f.properties.code));
