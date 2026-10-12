@@ -178,7 +178,7 @@ function initMap() {
 
     // Earthquake click popup
     map.on('click', 'earthquakes-circle', (e) => {
-      if (distanceTool?.active || countriesActive()) return;
+      if (distanceTool?.active) return;
       e.originalEvent.stopPropagation();
       const coords = e.features[0].geometry.coordinates;
       showQuakePopup(e.features[0].properties, coords[0], coords[1]);
@@ -322,7 +322,7 @@ function initMap() {
 
     // Buoy click popup
     map.on('click', 'buoys-point', (e) => {
-      if (distanceTool?.active || countriesActive()) return;
+      if (distanceTool?.active) return;
       e.originalEvent.stopPropagation();
       const p = e.features[0].properties;
       const coords = e.features[0].geometry.coordinates;
@@ -361,7 +361,7 @@ function initMap() {
 
     // Cluster click → zoom in
     map.on('click', 'buoys-clusters', async (e) => {
-      if (distanceTool?.active || countriesActive()) return;
+      if (distanceTool?.active) return;
       e.originalEvent.stopPropagation();
       const features = map.queryRenderedFeatures(e.point, { layers: ['buoys-clusters'] });
       if (!features.length) return;
@@ -585,10 +585,6 @@ async function handleMapClick(e) {
     }
     return;
   }
-  if (countriesActive()) {
-    countrySelection?.handleClick(e);
-    return;
-  }
   // Skip if click hit an overlay feature (earthquake, buoy, etc.)
   if (e.point && eq3dActive) {
     const hit = pickQuakeSphere(e.point);
@@ -604,6 +600,10 @@ async function handleMapClick(e) {
       const hits = map.queryRenderedFeatures(e.point, { layers: activeLayers });
       if (hits.length > 0) return;
     }
+  }
+  if (countriesActive()) {
+    countrySelection?.handleClick(e);
+    return;
   }
 
   const { lat, lng } = e.lngLat;
