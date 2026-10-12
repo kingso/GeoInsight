@@ -8,6 +8,7 @@ import { renderSunChart, getSunAzimuth } from './sun-chart.js';
 
 // ── Deferred Sun Chart state ────────────────────────────
 let _sunChartPending = null; // { lat, lng, timezone }
+let _locationClockInterval = null;
 
 // ── Tab Switching ───────────────────────────────────────
 export function initTabs() {
@@ -40,6 +41,12 @@ export function hidePanel() {
   document.getElementById('profile-panel').classList.remove('open');
   document.getElementById('layer-panel')?.classList.remove('shifted');
   document.getElementById('basemap-switcher')?.classList.remove('shifted');
+  stopLocationClock();
+}
+
+function stopLocationClock() {
+  if (_locationClockInterval) clearInterval(_locationClockInterval);
+  _locationClockInterval = null;
 }
 
 // ── Set Loading State ───────────────────────────────────
@@ -107,7 +114,8 @@ export function renderOverview(data) {
     }
   }
   if (weather?.timezone) {
-    html += detailRow('🕐 Timezone', weather.timezone.replace(/_/g, ' '));
+    html += detailRow('🕐 Timezone', `${weather.timezone.replace(/_/g, ' ')} (${getTimezoneOffset(weather.timezone)})`);
+    html += `<div class="detail-row"><span class="label">🕒 Current Time</span><span class="value" id="location-current-time"></span></div>`;
   }
   html += '</div>';
 
@@ -146,6 +154,19 @@ export function renderOverview(data) {
   }
 
   el.innerHTML = html;
+  stopLocationClock();
+  if (weather?.timezone) {
+    const updateClock = () => {
+      const clock = document.getElementById('location-current-time');
+      if (!clock) {
+        stopLocationClock();
+        return;
+      }
+      clock.textContent = formatLocationTime(weather.timezone);
+    };
+    updateClock();
+    _locationClockInterval = setInterval(updateClock, 1000);
+  }
 }
 
 // ── Render Weather Tab ──────────────────────────────────
@@ -322,6 +343,24 @@ function _renderSunCanvas() {
 // ── Helpers ─────────────────────────────────────────────
 function detailRow(label, value) {
   return `<div class="detail-row"><span class="label">${label}</span><span class="value">${value}</span></div>`;
+}
+
+function getTimezoneOffset(timezone) {
+  const offset = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    timeZoneName: 'longOffset'
+  }).formatToParts(new Date()).find(part => part.type === 'timeZoneName')?.value;
+  return (offset || 'GMT').replace(/^GMT/, 'UTC');
+}
+
+function formatLocationTime(timezone) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(new Date());
 }
 
 function statItem(label, value) {
