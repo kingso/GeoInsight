@@ -210,7 +210,7 @@ function initMap() {
     // One hover path for 2D circles and 3D spheres (spheres float above their footprint)
     const updateQuakeHover = () => {
       let props = null;
-      if (hoverPoint && !countriesActive()) {
+      if (hoverPoint) {
         if (eq3dActive) {
           props = pickQuakeSphere(hoverPoint)?.props ?? null;
         } else if (map.getLayoutProperty('earthquakes-circle', 'visibility') === 'visible') {
