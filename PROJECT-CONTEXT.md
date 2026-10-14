@@ -50,7 +50,7 @@ geo-overlay/
 | **Open-Meteo Weather** | `api.open-meteo.com/v1/forecast` | Current conditions, 7-day forecast, sunshine_duration, sunrise/sunset |
 | **Open-Meteo Air Quality** | `air-quality-api.open-meteo.com/v1/air-quality` | US AQI, EU AQI, PM2.5, PM10, O₃, NO₂, SO₂, CO, dust |
 | **Open-Meteo Elevation** | `api.open-meteo.com/v1/elevation` | Terrain elevation for any lat/lng. Returns 0 over water, so `fetchElevation()` then falls back to `/api/depth` (Worker → OpenTopoData GEBCO 2020, public limit ~1000 req/day) |
-| **USGS Earthquakes** | `earthquake.usgs.gov/.../2.5_week.geojson` | M2.5+ earthquakes (7 days). Properties: `mag`, `place`, `time`, `alert`, `felt`, `cdi`, `tsunami`, `url` |
+| **USGS Earthquakes** | `earthquake.usgs.gov/.../2.5_{day,week,month}.geojson` | M2.5+ earthquakes (past 24 hours, week, or month). Properties: `mag`, `place`, `time`, `alert`, `felt`, `cdi`, `tsunami`, `url` |
 | **NOAA NDBC Buoys** | `ndbc.noaa.gov/data/latest_obs/latest_obs.txt` | Marine buoy observations (via same-origin Cloudflare Worker `worker/index.js` → `/api/buoys`). Fixed-width text parsed into GeoJSON |
 | **Nominatim** | `nominatim.openstreetmap.org/reverse` | Reverse geocoding → place name + `country_code` |
 | **flagcdn.com** | `flagcdn.com/24x18/{cc}.png` | Country flag images (Windows doesn't support flag emoji via regional indicators) |
@@ -66,7 +66,7 @@ Windows can't render flag emoji (regional indicator sequences). We use `<img>` t
 
 ### Earthquake Auto-Refresh
 - **Interval:** Every 5 minutes (`EQ_REFRESH_MS = 5 * 60 * 1000`)
-- **Cache:** `earthquakeCache` in `api.js` with 5-min TTL. `fetchEarthquakes(forceRefresh)` accepts a boolean to bypass cache.
+- **Cache:** `earthquakeCache` in `api.js` uses a 5-min TTL per selected time range. `fetchEarthquakes(forceRefresh, period)` accepts a boolean to bypass cache and a USGS period (`day`, `week`, or `month`).
 - **New detection:** `eqPreviousIds` (Set) in `app.js` tracks known earthquake IDs. On refresh, new IDs trigger the "New Earthquakes" panel.
 - **First load:** Shows the 5 most recent earthquakes (sorted by time desc).
 - **Panel:** Collapsible, glassy, bottom-left. Animated red border pulse (`eqBorderPulse` keyframes) when new quakes arrive. Items have slide-in animation. Clicking an item flies to its location.
@@ -134,7 +134,7 @@ When elevation is negative (ocean/sea locations), the Overview tab shows "Depth"
 ### Panels & Controls
 - **Logo** (`#logo-home`): Top-left. Click resets map to world view, removes marker, clears hash, closes panel/popups.
 - **Globe Toggle** (`#globe-toggle`): Top-left beside logo. Switches between 2D Mercator and 3D globe projection.
-- **Layer Panel** (`#layer-panel`): Top-right. Toggle button + dropdown with two sections: **Overlays** (5 checkboxes: Earthquakes, NOAA Buoys, Day/Night, Tectonic Plates, Bathymetry) and **Weather** (1 checkbox: Rain Radar). EQ checkbox has adjacent timestamp + refresh button (`#eq-meta`) and a "3D depth view" sub-option (`#ol-earthquakes-3d`, shown only while earthquakes are on).
+- **Layer Panel** (`#layer-panel`): Top-right. Toggle button + dropdown with two sections: **Overlays** (5 checkboxes: Earthquakes, NOAA Buoys, Day/Night, Tectonic Plates, Bathymetry) and **Weather** (1 checkbox: Rain Radar). Earthquakes has a time-range selector (`#eq-period`) for the past 24 hours, week, or month, an adjacent timestamp + refresh button (`#eq-meta`), and a "3D depth view" sub-option (`#ol-earthquakes-3d`, shown only while earthquakes are on).
 - **Earthquake 3D view**: `setEarthquakes3D()` switches to satellite + globe + pitch 55 and hides the circle layer. Spheres are drawn every frame (`map.on('render')`) on a 2D canvas overlay (`.eq3d-canvas`) by `drawQuakeSpheres()`: shaded, semi-transparent (`EQ3D_OPACITY`), back-to-front, with a stem to the ground point. Height = depth relative to the deepest quake (max 1000 km), radius = magnitude. Screen radius matches the 2D magnitude scale through zoom 2, doubles at zoom 5, and grows smoothly to a maximum of 3x for close-up views; drawing, picking, and popup offsets share this radius. Positions come from MapLibre's internal `map.transform.locationToScreenPoint(lngLat, fakeTerrain)` (fake terrain supplies the altitude); `pickQuakeSphere()` reuses them for hover/click. Not fill-extrusion: it renders as stepped discs and transparent extrusions hide anything behind them.
 - **Earthquake hover tag** (`.quake-tooltip`): magnitude + depth, background uses the same depth colour as the circle/sphere (`getDepthColor()`).
 - **Base Map Switcher** (`#basemap-switcher`): Bottom-centre pill of buttons (Satellite, Streets, Topo, Ocean). Re-centres in the visible map area when the profile panel is open (`.shifted`).

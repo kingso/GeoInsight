@@ -15,7 +15,7 @@ Switch between four base map styles from the bar at the bottom of the screen:
 
 ### 📊 Data Overlays
 - **🌐 Countries** — English country names and outlined borders from Natural Earth v5.1.2 (1:50m), available over any base map in 2D or globe mode. The public-domain dataset includes countries and territories; boundaries are generalized, may be disputed, and are not a statement of sovereignty. Labels use dedicated placement points and collision handling. Data loads on first use and is cached for the session.
-- **🔴 Earthquakes** — M2.5+ earthquakes from the past 7 days (USGS). Auto-refreshes every 5 minutes with desktop notifications for new quakes. Color-coded by depth, sized by magnitude. Hover for a quick magnitude/depth tag.
+- **🔴 Earthquakes** — M2.5+ earthquakes from the past 24 hours, week, or month (USGS). Auto-refreshes every 5 minutes with desktop notifications for new quakes. Color-coded by depth, sized by magnitude. Hover for a quick magnitude/depth tag.
   - **🔮 3D depth view** — switches to satellite + globe and shows each quake as a sphere floating above the surface: height = depth (relative to the deepest quake shown), size = magnitude.
 - **🚢 NOAA Buoys** — Real-time marine buoy observations with wave height, water temp, wind, and pressure. Clustered at low zoom levels.
 - **🌗 Day/Night Terminator** — Real-time sunlight boundary, updated every 60 seconds.

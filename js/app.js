@@ -18,6 +18,7 @@ let marker;
 let currentLat = null;
 let currentLng = null;
 let earthquakesLoaded = false;
+let earthquakesLoadedPeriod = null;
 let buoysLoaded = false;
 let eqRefreshInterval = null;
 let eqPreviousIds = new Set(); // track known earthquake IDs for "new" detection
@@ -705,6 +706,7 @@ function setupOverlayControls() {
   const eqMeta = document.getElementById('eq-meta');
   const eqTimestamp = document.getElementById('eq-timestamp');
   const eqRefreshBtn = document.getElementById('eq-refresh');
+  const eqPeriod = document.getElementById('eq-period');
   const eq3dOption = document.getElementById('eq-3d-option');
   const eq3dToggle = document.getElementById('ol-earthquakes-3d');
 
@@ -715,6 +717,10 @@ function setupOverlayControls() {
     e.preventDefault();
     e.stopPropagation();
     await refreshEarthquakes(true);
+  });
+
+  eqPeriod?.addEventListener('change', () => {
+    if (earthquakeToggle?.checked) refreshEarthquakes(true, false);
   });
 
   // Collapse/expand EQ panel
@@ -733,11 +739,13 @@ function setupOverlayControls() {
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
       }
-      if (!earthquakesLoaded) {
+      const period = eqPeriod?.value || 'week';
+      if (!earthquakesLoaded || earthquakesLoadedPeriod !== period) {
         try {
-          const data = await fetchEarthquakes();
+          const data = await fetchEarthquakes(false, period);
           setEarthquakeData(data);
           earthquakesLoaded = true;
+          earthquakesLoadedPeriod = period;
           // Store all current IDs so first refresh can detect new ones
           eqPreviousIds = new Set(data.features.map(f => f.id ?? f.properties.code));
           updateEqTimestamp();
@@ -1446,20 +1454,22 @@ function stopEqAutoRefresh() {
   }
 }
 
-async function refreshEarthquakes(force = false) {
+async function refreshEarthquakes(force = false, detectNew = true) {
   const btn = document.getElementById('eq-refresh');
+  const period = document.getElementById('eq-period')?.value || 'week';
   if (btn) btn.classList.add('spinning');
 
   try {
-    const data = await fetchEarthquakes(force);
+    const data = await fetchEarthquakes(force, period);
+    if (period !== (document.getElementById('eq-period')?.value || 'week')) return;
     setEarthquakeData(data);
 
     // Detect new earthquakes
     const currentIds = new Set(data.features.map(f => f.id ?? f.properties.code));
-    const newQuakes = data.features.filter(f => {
+    const newQuakes = detectNew ? data.features.filter(f => {
       const id = f.id ?? f.properties.code;
       return !eqPreviousIds.has(id);
-    });
+    }) : [];
 
     if (newQuakes.length > 0 && eqPreviousIds.size > 0) {
       showNewEarthquakes(newQuakes);
@@ -1467,6 +1477,9 @@ async function refreshEarthquakes(force = false) {
     }
 
     eqPreviousIds = currentIds;
+    earthquakesLoaded = true;
+    earthquakesLoadedPeriod = period;
+    if (!detectNew) showRecentEarthquakes(data.features);
     updateEqTimestamp();
     console.log(`EQ refresh: ${data.features.length} total, ${newQuakes.length} new`);
   } catch (err) {

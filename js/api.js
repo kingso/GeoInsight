@@ -99,17 +99,22 @@ export async function fetchPlaceName(lat, lng) {
 }
 
 // ── Earthquakes (USGS GeoJSON Feed) ────────────────────
-let earthquakeCache = { data: null, timestamp: 0 };
+const earthquakeCache = new Map();
 const QUAKE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchEarthquakes(forceRefresh = false) {
+export async function fetchEarthquakes(forceRefresh = false, period = 'week') {
+  if (!['day', 'week', 'month'].includes(period)) {
+    throw new Error(`Invalid earthquake period: ${period}`);
+  }
+
   const now = Date.now();
-  if (!forceRefresh && earthquakeCache.data && (now - earthquakeCache.timestamp) < QUAKE_CACHE_TTL) {
-    return earthquakeCache.data;
+  const cached = earthquakeCache.get(period);
+  if (!forceRefresh && cached && (now - cached.timestamp) < QUAKE_CACHE_TTL) {
+    return cached.data;
   }
 
   const res = await fetch(
-    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson'
+    `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_${period}.geojson`
   );
   if (!res.ok) throw new Error(`USGS API error: ${res.status}`);
   const data = await res.json();
@@ -121,7 +126,7 @@ export async function fetchEarthquakes(forceRefresh = false) {
     f.properties.depth_mi = Math.round(depthKm * 0.621371 * 10) / 10;
   }
 
-  earthquakeCache = { data, timestamp: now };
+  earthquakeCache.set(period, { data, timestamp: now });
   return data;
 }
 
