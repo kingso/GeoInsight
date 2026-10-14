@@ -129,10 +129,11 @@ function initMap() {
   map.on('click', handleMapClick);
 
   // Coordinate display on mouse move
+  const coordsEl = document.getElementById('coords-display');
   map.on('mousemove', (e) => {
-    const { lat, lng } = e.lngLat;
-    document.getElementById('coords-display').textContent =
-      `${lat.toFixed(5)}°, ${lng.toFixed(5)}°`;
+    const { lat, lng } = e.lngLat.wrap();
+    coordsEl.textContent =
+      `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}   ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
   });
 
   // Dismiss hint on first click
@@ -719,7 +720,10 @@ function setupOverlayControls() {
     await refreshEarthquakes(true);
   });
 
+  const eqDesc = document.getElementById('eq-desc');
+  const EQ_PERIOD_DESC = { day: 'Past 24 hours', week: 'Past 7 days', month: 'Past 30 days' };
   eqPeriod?.addEventListener('change', () => {
+    if (eqDesc) eqDesc.textContent = `${EQ_PERIOD_DESC[eqPeriod.value] ?? 'Recent'} · USGS`;
     if (earthquakeToggle?.checked) refreshEarthquakes(true, false);
   });
 
@@ -785,7 +789,7 @@ function setupOverlayControls() {
       if (!buoysLoaded) {
         const label = buoyToggle.closest('label');
         const origText = label?.querySelector('.layer-label')?.textContent;
-        if (label) label.querySelector('.layer-label').textContent = '🚢 Loading buoys…';
+        if (label) label.querySelector('.layer-label').textContent = 'Loading buoys…';
         try {
           const data = await fetchBuoys();
           map.getSource('buoys')?.setData(data);
@@ -854,7 +858,7 @@ function setupOverlayControls() {
         label.removeAttribute('aria-busy');
       }
     }
-    if (countriesLoaded) text.textContent = '🌐 Countries';
+    if (countriesLoaded) text.textContent = 'Country labels';
     countryLayers.forEach(id => map.setLayoutProperty(id, 'visibility', countriesToggle.checked ? 'visible' : 'none'));
   });
 
@@ -866,7 +870,7 @@ function setupOverlayControls() {
       if (!platesLoaded) {
         const label = platesToggle.closest('label');
         const origText = label?.querySelector('.layer-label')?.textContent;
-        if (label) label.querySelector('.layer-label').textContent = '🌋 Loading plates…';
+        if (label) label.querySelector('.layer-label').textContent = 'Loading plates…';
         try {
           const data = await fetchTectonicPlates();
           map.getSource('plates')?.setData(data);
@@ -971,32 +975,40 @@ function setGlobe(on) {
   isGlobe = on;
   map.setProjection(on ? { type: 'globe' } : { type: 'mercator' });
   map.getContainer().classList.toggle('is-globe', on);
-  const btn = document.getElementById('globe-toggle');
-  if (!btn) return;
-  btn.classList.toggle('active', on);
-  btn.querySelector('.globe-toggle-label').textContent = on ? '2D' : '3D';
-  btn.title = on ? 'Switch to 2D flat map' : 'Switch to 3D Globe';
+  document.querySelectorAll('#globe-toggle .view-btn').forEach(btn => {
+    const active = (btn.dataset.view === '3d') === on;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
 }
 
 function setupGlobeToggle() {
-  document.getElementById('globe-toggle')?.addEventListener('click', () => setGlobe(!isGlobe));
+  document.querySelectorAll('#globe-toggle .view-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const on = btn.dataset.view === '3d';
+      if (on !== isGlobe) setGlobe(on);
+    });
+  });
 }
 
-// ── Layer Panel Toggle ──────────────────────────────────
+// ── Sidebar (drawer on narrow screens) ──────────────────
 function setupLayerPanel() {
-  const toggle = document.getElementById('layer-toggle');
-  const content = document.getElementById('layer-content');
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.getElementById('sidebar-toggle');
+  const backdrop = document.getElementById('sidebar-backdrop');
 
-  toggle?.addEventListener('click', () => {
-    content.classList.toggle('open');
-  });
+  const setOpen = (open) => {
+    sidebar.classList.toggle('open', open);
+    backdrop.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+  };
 
-  // Close panel when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#layer-panel')) {
-      content?.classList.remove('open');
-    }
-  });
+  toggle?.addEventListener('click', () => setOpen(!sidebar.classList.contains('open')));
+  backdrop?.addEventListener('click', () => setOpen(false));
+  matchMedia('(min-width: 1025px)').addEventListener('change', (e) => { if (e.matches) setOpen(false); });
+
+  // Search is visual-only for now
+  document.querySelector('.header-search')?.addEventListener('submit', (e) => e.preventDefault());
 }
 
 // ── Profile Panel Close ─────────────────────────────────

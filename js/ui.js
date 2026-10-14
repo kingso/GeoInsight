@@ -33,14 +33,12 @@ export function initTabs() {
 // ── Panel Show / Hide ───────────────────────────────────
 export function showPanel() {
   document.getElementById('profile-panel').classList.add('open');
-  document.getElementById('layer-panel')?.classList.add('shifted');
-  document.getElementById('basemap-switcher')?.classList.add('shifted');
+  document.querySelector('.map-area')?.classList.add('panel-open');
 }
 
 export function hidePanel() {
   document.getElementById('profile-panel').classList.remove('open');
-  document.getElementById('layer-panel')?.classList.remove('shifted');
-  document.getElementById('basemap-switcher')?.classList.remove('shifted');
+  document.querySelector('.map-area')?.classList.remove('panel-open');
   stopLocationClock();
 }
 
@@ -288,11 +286,11 @@ export function renderSunChartTab(lat, lng, timezone) {
     <div class="info-card" style="margin-top:12px">
       <h4>Legend</h4>
       <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;">
-        <span>🟡 <span style="color:#ffd700">Sunrise</span></span>
-        <span>🟠 <span style="color:#ff6b35">Sunset</span></span>
-        <span>🟢 <span style="color:#4ecdc4">Day Length</span></span>
+        <span>🟡 <span style="color:#d99a00">Sunrise</span></span>
+        <span>🟠 <span style="color:#e8590c">Sunset</span></span>
+        <span>🟢 <span style="color:#0d8a7c">Day Length</span></span>
         <span>⬜ Today</span>
-        <span>🔴 <span style="color:#e91e63">Solstice/Equinox</span></span>
+        <span>🔴 <span style="color:#d6336c">Solstice/Equinox</span></span>
       </div>
     </div>`;
 
@@ -322,17 +320,17 @@ function _renderSunCanvas() {
     statsEl.innerHTML = `
       <div class="sun-stat">
         <div class="icon">☀️</div>
-        <div class="time" style="color:#ffd700">${result.sunrise}</div>
+        <div class="time" style="color:#d99a00">${result.sunrise}</div>
         <div class="label">Sunrise · ${compassDir(result.sunriseAz)} ${result.sunriseAz}°</div>
       </div>
       <div class="sun-stat">
         <div class="icon">🌅</div>
-        <div class="time" style="color:#ff6b35">${result.sunset}</div>
+        <div class="time" style="color:#e8590c">${result.sunset}</div>
         <div class="label">Sunset · ${compassDir(result.sunsetAz)} ${result.sunsetAz}°</div>
       </div>
       <div class="sun-stat">
         <div class="icon">⏱️</div>
-        <div class="time" style="color:#4ecdc4">${hrs}h ${mins}m</div>
+        <div class="time" style="color:#0d8a7c">${hrs}h ${mins}m</div>
         <div class="label">Daylight</div>
       </div>`;
   }

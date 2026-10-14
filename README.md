@@ -6,8 +6,11 @@ An interactive world map with layered data overlays and rich location profiles. 
 
 ## Features
 
+### 🧩 Layout
+A light app shell with a header (logo, search box, 2D Map / 3D Globe toggle), an **Explore the Earth** sidebar (base maps, map layers, tools), the map, and a footer showing cursor coordinates and data attribution. The search box is visual only for now. On tablets and phones the sidebar becomes a slide-out drawer opened from the ☰ button, and on phones the location panel becomes a bottom sheet.
+
 ### 🗺️ Base Maps
-Switch between four base map styles from the bar at the bottom of the screen:
+Switch between four base map styles using the thumbnail cards in the sidebar:
 - **Satellite** (Esri) — default
 - **Streets** (OpenStreetMap)
 - **Topographic** (OpenTopoMap)
@@ -31,17 +34,17 @@ The popup loads capital, languages, and currency from the open [mledoze/countrie
 Ocean clicks, Escape, or closing the popup clear selection. Disabling Countries restores location pins. Measure Distance takes priority over country selection. Country stats open in a floating panel on the opposite side of the map from the click. Drag the header with a mouse or touch, or focus it and use the arrow keys (Shift for larger steps), to reposition the panel. It stays in place while the map moves and is kept inside the map bounds. Statistics scroll independently so the header and close button remain accessible on smaller screens.
 
 ### US States
-Enable **US States** beneath Countries, or use **Show states** in the United States panel. Both controls share one setting. The overlay covers the 50 states plus Washington, DC with English labels and Census 2024 generalized 1:5m boundaries; territories remain separate country/territory selections. Clicking a state highlights it and opens the same draggable panel. Clicks outside the US still select countries, disabling States restores US country selection, and disabling Countries also turns States off. Measure Distance retains priority.
+Enable **US States** beneath Country labels in the sidebar, or use **Show states** in the United States panel. Both controls share one setting. The overlay covers the 50 states plus Washington, DC with English labels and Census 2024 generalized 1:5m boundaries; territories remain separate country/territory selections. Clicking a state highlights it and opens the same draggable panel. Clicks outside the US still select countries, disabling States restores US country selection, and disabling Countries also turns States off. Measure Distance retains priority.
 
 State panels include capital (or DC's federal seat), abbreviation, land and total area, population, calculated population density, and median household income. Population and income use Census ACS **2020-2024 five-year estimates**, served by [Census Reporter](https://censusreporter.org/), with reported 90% margins of error; income is in inflation-adjusted 2024 USD. Area comes from the 2024 Census boundaries and capitals are reference metadata. These are dated estimates, not live counts.
 
 State statistics require the existing Cloudflare Worker: `GET /api/us-state?fips=06` validates the FIPS code, queries a fixed Census Reporter endpoint with a project-specific User-Agent, and caches successful responses for a day. No Census API key is required. Missing estimates are marked unavailable; failed requests offer retry. Boundaries load on first use and are cached for the page session.
 
 ### Tools
-**Measure Distance**, below Weather in the layer menu, measures a multi-point path in kilometres and miles. Enable it and click successive points on the map. Undo removes the last point; Clear starts a new measurement; Close, Escape, or disabling the tool exits measurement mode. It works in 2D and globe mode using Turf geodesic distances and great-circle lines, including dateline crossings. Distances approximate the Earth's surface, not road routes or terrain elevation. The tool loads pinned Turf modules from esm.sh; the rest of the map remains available if that dependency fails.
+**Measure Distance**, under Tools in the sidebar, measures a multi-point path in kilometres and miles. Enable it and click successive points on the map. Undo removes the last point; Clear starts a new measurement; Close, Escape, or disabling the tool exits measurement mode. It works in 2D and globe mode using Turf geodesic distances and great-circle lines, including dateline crossings. Distances approximate the Earth's surface, not road routes or terrain elevation. The tool loads pinned Turf modules from esm.sh; the rest of the map remains available if that dependency fails.
 
 ### 📍 Location Profiles
-With Countries and Measure Distance off, click anywhere on the map to open a detailed profile panel with four tabs:
+With Countries and Measure Distance off, click anywhere on the map to open a detailed profile panel, docked to the right of the map, with four tabs:
 
 | Tab | Content |
 |-----|---------|
@@ -51,7 +54,7 @@ With Countries and Measure Distance off, click anywhere on the map to open a det
 | **Sun Chart** | Full-year sunrise/sunset/day-length chart with solstice/equinox markers and hover details |
 
 ### 🌐 Globe Mode
-Toggle between 2D Mercator and 3D globe projection (MapLibre GL v5).
+Use the **2D Map / 3D Globe** toggle in the header to switch between Mercator and globe projection (MapLibre GL v5).
 
 ### 🧭 Sun Direction Lines
 Visualize sunrise/sunset compass bearings as directional lines on the map from any selected location.
@@ -103,7 +106,9 @@ All APIs are **free and require no API keys**.
 geo-overlay/
 ├── index.html          # Single-page app
 ├── css/
-│   └── styles.css      # All styling (glassy panels, popups, animations)
+│   └── styles.css      # All styling (light theme, app shell, panels, popups, animations)
+├── img/
+│   └── basemaps/       # Base-map thumbnails for the sidebar
 ├── js/
 │   ├── app.js          # Map init, layer management, interaction handling
 │   ├── api.js          # All external API calls + helpers

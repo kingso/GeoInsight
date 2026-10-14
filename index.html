@@ -9,50 +9,81 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 </head>
 <body>
+<div class="app">
 
-  <!-- Full-screen map -->
-  <div id="map"></div>
-
-  <!-- Logo / Home Button (top-left) -->
-  <a href="#" id="logo-home" title="Reset map">
-    <span class="logo-icon">🌍</span><span class="logo-geo">Geo</span><span class="logo-insight">Insight</span>
-  </a>
-
-  <!-- 2D / 3D Globe Toggle (top-left, beside logo) -->
-  <button id="globe-toggle" class="globe-toggle" title="Toggle 2D / 3D Globe">
-    <span class="globe-toggle-icon">🌐</span>
-    <span class="globe-toggle-label">3D</span>
-  </button>
-
-  <!-- Layer Controls (top-right) -->
-  <div id="layer-panel" class="control-panel">
-    <button id="layer-toggle" class="control-toggle" title="Toggle layers panel">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-        <polyline points="2 17 12 22 22 17"/>
-        <polyline points="2 12 12 17 22 12"/>
-      </svg>
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <button id="sidebar-toggle" class="icon-btn sidebar-toggle" type="button" aria-label="Toggle map controls" aria-controls="sidebar" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
     </button>
-    <div id="layer-content" class="control-content">
-      <h3>Overlays</h3>
+
+    <a href="#" id="logo-home" class="brand" title="Reset map">
+      <span class="logo-icon" aria-hidden="true">🌍</span>
+      <span class="brand-text">
+        <span class="logo-word"><span class="logo-geo">Geo</span><span class="logo-insight">Insight</span></span>
+        <span class="logo-tagline">A world of discovery</span>
+      </span>
+    </a>
+
+    <form class="header-search" role="search" title="Search coming soon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="search-input" placeholder="Search for a city or place…" aria-label="Search for a city or place" autocomplete="off">
+      <kbd aria-hidden="true">↵</kbd>
+    </form>
+
+    <div id="globe-toggle" class="view-toggle" role="group" aria-label="Map projection">
+      <button type="button" class="view-btn active" data-view="2d" aria-pressed="true">2D Map</button>
+      <button type="button" class="view-btn" data-view="3d" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><ellipse cx="12" cy="12" rx="4" ry="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        3D Globe
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Sidebar ===== -->
+  <aside id="sidebar" class="sidebar" aria-label="Map controls">
+    <div class="sidebar-title">
+      <h2>Explore the Earth</h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+    </div>
+
+    <section class="sidebar-section">
+      <h3>Base map</h3>
+      <div id="basemap-switcher" class="basemap-grid" role="radiogroup" aria-label="Base map">
+        <button type="button" class="basemap-option active" data-base="satellite" role="radio" aria-checked="true">
+          <img src="img/basemaps/satellite.jpg" alt="" width="256" height="256"><span>Satellite</span>
+        </button>
+        <button type="button" class="basemap-option" data-base="streets" role="radio" aria-checked="false">
+          <img src="img/basemaps/streets.png" alt="" width="256" height="256"><span>Streets</span>
+        </button>
+        <button type="button" class="basemap-option" data-base="topo" role="radio" aria-checked="false">
+          <img src="img/basemaps/topo.png" alt="" width="256" height="256"><span>Topographic</span>
+        </button>
+        <button type="button" class="basemap-option" data-base="ocean" role="radio" aria-checked="false">
+          <img src="img/basemaps/ocean.jpg" alt="" width="256" height="256"><span>Ocean</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="sidebar-section">
+      <h3>Map layers</h3>
       <div class="layer-group" id="overlay-layers">
-        <label class="layer-option" title="English country names and Natural Earth boundaries">
-          <input type="checkbox" id="ol-countries" disabled>
-          <span class="layer-label">🌐 Countries</span>
+        <label class="layer-row" title="English country names and Natural Earth boundaries">
+          <span class="layer-icon tint-slate" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Country labels</span><span class="layer-desc">Borders &amp; place names</span></span>
+          <input type="checkbox" class="switch" id="ol-countries" disabled>
         </label>
-        <label class="layer-option layer-sub hidden" id="us-states-option" title="50 US states and Washington, DC">
-          <input type="checkbox" id="ol-us-states">
-          <span class="layer-label">US States</span>
+        <label class="layer-row layer-sub hidden" id="us-states-option" title="50 US states and Washington, DC">
+          <span class="layer-text"><span class="layer-label">US States</span></span>
+          <input type="checkbox" class="switch" id="ol-us-states">
         </label>
-        <label class="layer-option">
-          <input type="checkbox" id="ol-earthquakes">
-          <span class="layer-label">🔴 Earthquakes</span>
-          <span id="eq-meta" class="eq-meta hidden">
-            <span id="eq-timestamp" class="eq-timestamp"></span>
-            <button id="eq-refresh" class="eq-refresh-btn" title="Refresh now">🔄</button>
-          </span>
+
+        <label class="layer-row">
+          <span class="layer-icon tint-red" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="2 12 6 12 9 4 13 20 16 10 18 12 22 12"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Earthquakes</span><span class="layer-desc" id="eq-desc">Past 7 days · USGS</span></span>
+          <input type="checkbox" class="switch" id="ol-earthquakes">
         </label>
-        <div class="layer-option layer-sub eq-period-option">
+        <div class="layer-sub eq-period-option">
           <label for="eq-period">Time range</label>
           <select id="eq-period" aria-label="Earthquake time range">
             <option value="day">Recent (24 hours)</option>
@@ -60,124 +91,139 @@
             <option value="month">Last month</option>
           </select>
         </div>
-        <label class="layer-option layer-sub hidden" id="eq-3d-option" title="Show earthquakes as spheres above the globe: height = depth, size = magnitude">
-          <input type="checkbox" id="ol-earthquakes-3d">
-          <span class="layer-label">🔮 3D depth view</span>
+        <div id="eq-meta" class="layer-sub eq-meta hidden">
+          <span>Updated <span id="eq-timestamp" class="eq-timestamp"></span></span>
+          <button id="eq-refresh" class="eq-refresh-btn" type="button" title="Refresh now" aria-label="Refresh earthquakes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+        </div>
+        <label class="layer-row layer-sub hidden" id="eq-3d-option" title="Show earthquakes as spheres above the globe: height = depth, size = magnitude">
+          <span class="layer-text"><span class="layer-label">3D depth view</span></span>
+          <input type="checkbox" class="switch" id="ol-earthquakes-3d">
         </label>
-        <label class="layer-option">
-          <input type="checkbox" id="ol-buoys">
-          <span class="layer-label">🚢 NOAA Buoys</span>
-        </label>
-        <label class="layer-option">
-          <input type="checkbox" id="ol-terminator">
-          <span class="layer-label">🌗 Day/Night</span>
-        </label>
-        <label class="layer-option">
-          <input type="checkbox" id="ol-plates">
-          <span class="layer-label">🌋 Tectonic Plates</span>
-        </label>
-        <label class="layer-option">
-          <input type="checkbox" id="ol-bathymetry">
-          <span class="layer-label">🌊 Bathymetry</span>
-        </label>
-      </div>
 
-      <h3>Weather</h3>
-      <div class="layer-group" id="weather-layers">
-        <label class="layer-option">
-          <input type="checkbox" id="ol-radar">
-          <span class="layer-label">📡 Rain Radar</span>
+        <label class="layer-row">
+          <span class="layer-icon tint-orange" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 20 9 8l4 7 3-4 5 9z"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Tectonic plates</span><span class="layer-desc">Earth's shifting boundaries</span></span>
+          <input type="checkbox" class="switch" id="ol-plates">
+        </label>
+
+        <label class="layer-row">
+          <span class="layer-icon tint-purple" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Day &amp; night</span><span class="layer-desc">Current sunlight boundary</span></span>
+          <input type="checkbox" class="switch" id="ol-terminator">
+        </label>
+
+        <label class="layer-row">
+          <span class="layer-icon tint-blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"/><line x1="8" y1="17" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="21"/><line x1="16" y1="17" x2="16" y2="21"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Rain radar</span><span class="layer-desc">Latest radar · RainViewer</span></span>
+          <input type="checkbox" class="switch" id="ol-radar">
+        </label>
+
+        <label class="layer-row">
+          <span class="layer-icon tint-teal" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2v8M8 6h8"/><path d="M5 14c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 2-2"/><path d="M3 19c2 0 2 2 4 2s2-2 4-2 2 2 4 2 2-2 4-2"/></svg></span>
+          <span class="layer-text"><span class="layer-label">NOAA buoys</span><span class="layer-desc">Live marine observations</span></span>
+          <input type="checkbox" class="switch" id="ol-buoys">
+        </label>
+
+        <label class="layer-row">
+          <span class="layer-icon tint-navy" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 6c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 12c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/><path d="M2 18c2.5 0 2.5 2 5 2s2.5-2 5-2 2.5 2 5 2 2.5-2 5-2"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Bathymetry</span><span class="layer-desc">Ocean depth · GEBCO</span></span>
+          <input type="checkbox" class="switch" id="ol-bathymetry">
         </label>
       </div>
+    </section>
+
+    <section class="sidebar-section">
       <h3>Tools</h3>
       <div class="layer-group" id="tool-layers">
-        <label class="layer-option">
-          <input type="checkbox" id="tool-measure-distance" disabled>
-          <span class="layer-label">📏 Measure Distance</span>
+        <label class="layer-row tool-row">
+          <span class="tool-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0z"/><path d="m14.5 12.5 2-2M11.5 9.5l2-2M8.5 6.5l2-2M17.5 15.5l2-2"/></svg></span>
+          <span class="layer-text"><span class="layer-label">Measure distance</span></span>
+          <input type="checkbox" class="switch" id="tool-measure-distance" disabled>
         </label>
       </div>
-    </div>
-  </div>
+    </section>
+  </aside>
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
-  <div id="measure-toolbar" role="group" aria-label="Distance measurement" hidden>
-    <output id="measure-total" aria-live="polite">0 km / 0 mi</output>
-    <button id="measure-undo" type="button" title="Undo last point" aria-label="Undo last point" disabled>&#8630;</button>
-    <button id="measure-clear" type="button" title="Clear measurement" aria-label="Clear measurement" disabled>&#9003;</button>
-    <button id="measure-stop" type="button" title="Close measurement" aria-label="Close measurement">&times;</button>
-  </div>
+  <!-- ===== Map ===== -->
+  <main class="map-area">
+    <div id="map"></div>
 
-  <!-- Profile Panel (right side, slides in) -->
-  <div id="profile-panel" class="profile-panel">
-    <button id="profile-close" class="close-btn" title="Close (Esc)">&times;</button>
-
-    <div id="profile-header">
-      <h2 id="profile-title">Select a Location</h2>
-      <p id="profile-subtitle">Click anywhere on the map</p>
+    <div id="measure-toolbar" role="group" aria-label="Distance measurement" hidden>
+      <output id="measure-total" aria-live="polite">0 km / 0 mi</output>
+      <button id="measure-undo" type="button" title="Undo last point" aria-label="Undo last point" disabled>&#8630;</button>
+      <button id="measure-clear" type="button" title="Clear measurement" aria-label="Clear measurement" disabled>&#9003;</button>
+      <button id="measure-stop" type="button" title="Close measurement" aria-label="Close measurement">&times;</button>
     </div>
 
-    <div id="profile-tabs">
-      <button class="tab active" data-tab="overview">Overview</button>
-      <button class="tab" data-tab="weather">Weather</button>
-      <button class="tab" data-tab="air">Air Quality</button>
-      <button class="tab" data-tab="sun">Sun Chart</button>
-    </div>
+    <!-- Location profile (docked right, slides in) -->
+    <div id="profile-panel" class="profile-panel">
+      <button id="profile-close" class="close-btn" title="Close (Esc)" aria-label="Close location panel">&times;</button>
 
-    <div id="profile-body">
-      <div id="tab-overview" class="tab-content active">
-        <div class="placeholder-text">Click on the map to explore a location</div>
+      <div id="profile-header">
+        <h2 id="profile-title">Select a Location</h2>
+        <p id="profile-subtitle">Click anywhere on the map</p>
       </div>
-      <div id="tab-weather" class="tab-content">
-        <div class="placeholder-text">Weather data will appear here</div>
+
+      <div id="profile-tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="weather">Weather</button>
+        <button class="tab" data-tab="air">Air Quality</button>
+        <button class="tab" data-tab="sun">Sun Chart</button>
       </div>
-      <div id="tab-air" class="tab-content">
-        <div class="placeholder-text">Air quality data will appear here</div>
-      </div>
-      <div id="tab-sun" class="tab-content">
-        <div class="placeholder-text">Sun chart will appear here</div>
+
+      <div id="profile-body">
+        <div id="tab-overview" class="tab-content active">
+          <div class="placeholder-text">Click on the map to explore a location</div>
+        </div>
+        <div id="tab-weather" class="tab-content">
+          <div class="placeholder-text">Weather data will appear here</div>
+        </div>
+        <div id="tab-air" class="tab-content">
+          <div class="placeholder-text">Air quality data will appear here</div>
+        </div>
+        <div id="tab-sun" class="tab-content">
+          <div class="placeholder-text">Sun chart will appear here</div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Base Map Switcher (bottom-centre) -->
-  <div id="basemap-switcher" class="basemap-switcher" role="radiogroup" aria-label="Base map">
-    <button type="button" class="basemap-option active" data-base="satellite" role="radio" aria-checked="true">🛰️ Satellite</button>
-    <button type="button" class="basemap-option" data-base="streets" role="radio" aria-checked="false">🗺️ Streets</button>
-    <button type="button" class="basemap-option" data-base="topo" role="radio" aria-checked="false">⛰️ Topographic</button>
-    <button type="button" class="basemap-option" data-base="ocean" role="radio" aria-checked="false">🌊 Ocean</button>
-  </div>
-
-  <!-- Coordinate display (bottom-left) -->
-  <div id="coords-display">Move cursor over map</div>
-
-  <!-- Earthquakes Panel (bottom-left, collapsible + glassy) -->
-  <div id="eq-new-panel" class="eq-new-panel hidden">
-    <div class="eq-new-header" id="eq-new-header-toggle">
-      <span class="eq-new-title">New Earthquakes</span>
-      <span id="eq-new-count" class="eq-new-count"></span>
-      <button id="eq-new-collapse" class="eq-new-collapse" title="Collapse">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
+    <!-- New earthquakes (bottom-left of map, collapsible) -->
+    <div id="eq-new-panel" class="eq-new-panel hidden">
+      <div class="eq-new-header" id="eq-new-header-toggle">
+        <span class="eq-new-title">New Earthquakes</span>
+        <span id="eq-new-count" class="eq-new-count"></span>
+        <button id="eq-new-collapse" class="eq-new-collapse" title="Collapse">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      </div>
+      <div id="eq-new-body" class="eq-new-body">
+        <div id="eq-new-list" class="eq-new-list"></div>
+      </div>
     </div>
-    <div id="eq-new-body" class="eq-new-body">
-      <div id="eq-new-list" class="eq-new-list"></div>
+
+    <div id="click-hint">
+      <span>🌍</span> Click anywhere to explore
     </div>
-  </div>
+  </main>
 
-  <!-- Click hint (center, fades out) -->
-  <div id="click-hint">
-    <span>🌍</span> Click anywhere to explore
-  </div>
-
-  <!-- Attribution bar -->
-  <div id="data-attribution">
-    Data: <a href="https://open-meteo.com/" target="_blank">Open-Meteo</a> ·
-    <a href="https://earthquake.usgs.gov/" target="_blank">USGS</a> ·
-    <a href="https://www.ndbc.noaa.gov/" target="_blank">NDBC</a> ·
-    <a href="https://nominatim.openstreetmap.org/" target="_blank">Nominatim</a> ·
-    <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap</a> ·
-    <a href="https://www.rainviewer.com/" target="_blank">RainViewer</a> ·
-    <a href="https://www.gebco.net/" target="_blank">GEBCO</a>
-  </div>
+  <!-- ===== Footer ===== -->
+  <footer class="app-footer">
+    <div id="coords-display">Move cursor over map</div>
+    <div id="data-attribution">
+      <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ·
+      <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">USGS</a> ·
+      <a href="https://www.ndbc.noaa.gov/" target="_blank" rel="noopener">NDBC</a> ·
+      <a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim</a> ·
+      <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a> ·
+      <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> ·
+      <a href="https://www.gebco.net/" target="_blank" rel="noopener">GEBCO</a>
+    </div>
+    <div class="footer-copy">GeoInsight © 2026</div>
+  </footer>
+</div>
 
   <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
   <script type="module" src="js/app.js"></script>

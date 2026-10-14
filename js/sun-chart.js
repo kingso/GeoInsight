@@ -162,11 +162,11 @@ export function renderSunChart(canvas, lat, lng, timezone) {
 
   // ── Draw ──
   // Background
-  ctx.fillStyle = '#0f1729';
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
   // Grid lines (hours)
-  ctx.strokeStyle = '#1e293b';
+  ctx.strokeStyle = '#e8edef';
   ctx.lineWidth = 1;
   for (let h = 0; h <= 24; h += 3) {
     const y = pad.t + cH - (h / 24) * cH;
@@ -175,7 +175,7 @@ export function renderSunChart(canvas, lat, lng, timezone) {
     ctx.lineTo(W - pad.r, y);
     ctx.stroke();
 
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#5b6b72';
     ctx.font = '10px system-ui';
     ctx.textAlign = 'right';
     ctx.fillText(`${h.toString().padStart(2, '0')}:00`, pad.l - 6, y + 3);
@@ -189,12 +189,12 @@ export function renderSunChart(canvas, lat, lng, timezone) {
     const x = pad.l + (day / totalDays) * cW;
 
     ctx.beginPath();
-    ctx.strokeStyle = '#1e293b';
+    ctx.strokeStyle = '#e8edef';
     ctx.moveTo(x, pad.t);
     ctx.lineTo(x, H - pad.b);
     ctx.stroke();
 
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = '#5b6b72';
     ctx.font = '10px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(months[mo], x + cW / 24, H - pad.b + 14);
@@ -214,18 +214,18 @@ export function renderSunChart(canvas, lat, lng, timezone) {
     ctx.lineTo(x, yS);
   }
   ctx.closePath();
-  ctx.fillStyle = 'rgba(255, 215, 0, 0.06)';
+  ctx.fillStyle = 'rgba(245, 180, 0, 0.12)';
   ctx.fill();
 
   // Sunrise line
-  drawLine(ctx, data, 'rise', '#ffd700', pad, cW, cH, totalDays);
+  drawLine(ctx, data, 'rise', '#d99a00', pad, cW, cH, totalDays);
   // Sunset line
-  drawLine(ctx, data, 'set', '#ff6b35', pad, cW, cH, totalDays);
+  drawLine(ctx, data, 'set', '#e8590c', pad, cW, cH, totalDays);
 
   // Day length line (scaled to chart)
   const maxLen = Math.max(...data.map(d => d.len));
   ctx.beginPath();
-  ctx.strokeStyle = '#4ecdc4';
+  ctx.strokeStyle = '#0d8a7c';
   ctx.lineWidth = 1.5;
   data.forEach((item, i) => {
     const x = pad.l + (i / totalDays) * cW;
@@ -247,13 +247,13 @@ export function renderSunChart(canvas, lat, lng, timezone) {
     const x = pad.l + (idx / totalDays) * cW;
     ctx.beginPath();
     ctx.setLineDash([3, 3]);
-    ctx.strokeStyle = '#e91e63';
+    ctx.strokeStyle = '#d6336c';
     ctx.lineWidth = 1;
     ctx.moveTo(x, pad.t);
     ctx.lineTo(x, H - pad.b);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#e91e63';
+    ctx.fillStyle = '#d6336c';
     ctx.font = '9px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(label, x, pad.t - 4);
@@ -264,13 +264,13 @@ export function renderSunChart(canvas, lat, lng, timezone) {
     const todayX = pad.l + (todayIdx / totalDays) * cW;
     ctx.beginPath();
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#1f2a30';
     ctx.lineWidth = 1.5;
     ctx.moveTo(todayX, pad.t);
     ctx.lineTo(todayX, H - pad.b);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#1f2a30';
     ctx.font = '9px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText('Today', todayX, H - pad.b + 28);
@@ -291,9 +291,9 @@ export function renderSunChart(canvas, lat, lng, timezone) {
         const dateStr = item.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
         infoEl.innerHTML =
           `<strong>${dateStr}</strong> · ` +
-          `☀️ <span style="color:#ffd700">${fmtTime(item.riseDate)}</span> — ` +
-          `🌅 <span style="color:#ff6b35">${fmtTime(item.setDate)}</span> · ` +
-          `⏱️ <span style="color:#4ecdc4">${Math.floor(item.len)}h ${Math.round((item.len % 1) * 60)}m</span>`;
+          `☀️ <span style="color:#d99a00">${fmtTime(item.riseDate)}</span> — ` +
+          `🌅 <span style="color:#e8590c">${fmtTime(item.setDate)}</span> · ` +
+          `⏱️ <span style="color:#0d8a7c">${Math.floor(item.len)}h ${Math.round((item.len % 1) * 60)}m</span>`;
       }
     }
   }

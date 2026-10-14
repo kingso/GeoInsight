@@ -16,9 +16,11 @@ A **vanilla HTML/CSS/JS** web app (ES modules, no build step) that renders an in
 
 ```
 geo-overlay/
-├── index.html          # Single-page app: map, panels, controls, attribution
+├── index.html          # Single-page app: header, sidebar, map area, footer
 ├── css/
-│   └── styles.css      # ~1040 lines. All styling inc. glassy panels, popups, animations
+│   └── styles.css      # Light theme. App shell grid, sidebar, panels, popups, animations
+├── img/
+│   └── basemaps/       # Static base-map thumbnails for the sidebar cards
 ├── js/
 │   ├── app.js          # Map init, layer management, EQ auto-refresh, click handling
 │   ├── api.js          # All external API calls + WMO codes, AQI helpers
@@ -38,7 +40,7 @@ geo-overlay/
 | **Map** | MapLibre GL v5 (CDN: `unpkg.com/maplibre-gl@5`). **IMPORTANT:** v5 uses **promise-based APIs** — e.g. `getClusterExpansionZoom()` returns a Promise, do NOT use callbacks. v5 also supports globe projection (`map.setProjection({ type: 'globe' })`). |
 | **Base maps** | Satellite (Esri, default), Streets (OSM), Topo (OpenTopoMap), Ocean (GEBCO/NCEI) — all raster tile sources defined in `app.js` |
 | **JS modules** | ES modules via `<script type="module">`. `app.js` is the entry point importing from `api.js`, `ui.js`, `sun-chart.js` |
-| **CSS** | Single `styles.css`, CSS custom properties in `:root`, backdrop-filter glass effects |
+| **CSS** | Single `styles.css`, light theme via CSS custom properties in `:root`, CSS grid app shell |
 | **No framework** | Pure vanilla JS, no React/Vue/Svelte/etc. |
 
 ---
@@ -74,8 +76,8 @@ Windows can't render flag emoji (regional indicator sequences). We use `<img>` t
 ### Map Click Handling
 `handleMapClick()` checks `queryRenderedFeatures()` against overlay layers first. If the click hit an overlay feature (earthquake circle, buoy point/cluster), it returns early and does NOT open the location profile.
 
-### Layer Panel Shift
-When the profile panel opens (right side), the layer controls (top-right) shift left by `var(--panel-width)` using a `.shifted` CSS class toggled via JS in `showPanel()`/`hidePanel()`.
+### Profile Panel Open State
+When the profile panel opens, `showPanel()`/`hidePanel()` toggle `.panel-open` on `.map-area`, which shifts MapLibre's bottom-right controls clear of the docked panel.
 
 ### Buoy Clustering
 Buoys use MapLibre's built-in GeoJSON clustering (`cluster: true`). Cluster click uses `async/await` (not callbacks) for `getClusterExpansionZoom()`.
@@ -87,7 +89,7 @@ Buoys use MapLibre's built-in GeoJSON clustering (`cluster: true`). Cluster clic
 Computed in `app.js` via `computeTerminatorGeoJSON()` using the same NOAA solar math (`sunCoords`, `toDays`, `RAD` imported from `sun-chart.js`). The night polygon + terminator edge line are drawn as GeoJSON fill + line layers. Auto-updates every 60 seconds via `terminatorInterval`. The night zone uses `fill-opacity: 0.35` so map clicks pass through it.
 
 ### Globe / 2D Toggle
-A button (`#globe-toggle`) beside the logo switches between Mercator (2D) and globe (3D) projection using MapLibre v5's `map.setProjection({ type: 'globe' })`. State tracked by `isGlobe` boolean.
+A segmented control in the header (`#globe-toggle` containing `.view-btn[data-view="2d"|"3d"]`) switches between Mercator (2D) and globe (3D) projection using MapLibre v5's `map.setProjection({ type: 'globe' })`. State is tracked by `isGlobe`; `setGlobe()` updates the active button and `aria-pressed`.
 
 ### Sun Direction Lines
 When a location is selected, the Overview tab shows a compass button (`#sun-dir-toggle`). Clicking it draws dashed sunrise/sunset azimuth lines on the map (gold for sunrise, orange for sunset) extending ~80 km from the marker. Uses `getSunAzimuthFromChart()` + `destinationPoint()` (Haversine).
@@ -131,17 +133,17 @@ When elevation is negative (ocean/sea locations), the Overview tab shows "Depth"
 
 ## 7. UI Structure
 
+### Layout
+A CSS grid app shell (`.app`) with four areas: header, left sidebar, map (`.map-area`, which contains `#map` and the map overlays), and footer. MapLibre resizes automatically when the grid changes.
+
 ### Panels & Controls
-- **Logo** (`#logo-home`): Top-left. Click resets map to world view, removes marker, clears hash, closes panel/popups.
-- **Globe Toggle** (`#globe-toggle`): Top-left beside logo. Switches between 2D Mercator and 3D globe projection.
-- **Layer Panel** (`#layer-panel`): Top-right. Toggle button + dropdown with two sections: **Overlays** (5 checkboxes: Earthquakes, NOAA Buoys, Day/Night, Tectonic Plates, Bathymetry) and **Weather** (1 checkbox: Rain Radar). Earthquakes has a time-range selector (`#eq-period`) for the past 24 hours, week, or month, an adjacent timestamp + refresh button (`#eq-meta`), and a "3D depth view" sub-option (`#ol-earthquakes-3d`, shown only while earthquakes are on).
+- **Header** (`.app-header`): logo/home button (`#logo-home`; click resets map view, removes marker, clears hash, closes panel/popups), a visual-only search box (`.header-search`, submit is prevented), and the 2D Map / 3D Globe segmented control (`#globe-toggle`).
+- **Sidebar** (`#sidebar`): "Explore the Earth". Sections: **Base map**, a 2×2 grid of thumbnail cards (`#basemap-switcher .basemap-option[data-base]`, with static images in `img/basemaps/`); **Map layers**, rows with tinted icons, titles, subtitles, and toggle switches (`input.switch`, IDs `ol-*`) for Country labels (nested US States row), Earthquakes, Tectonic plates, Day & night, Rain radar, NOAA buoys, and Bathymetry; **Tools**, with Measure distance. Earthquakes has nested rows for the time range (`#eq-period`, which also updates `#eq-desc`), timestamp + refresh (`#eq-meta`), and "3D depth view" (`#ol-earthquakes-3d`, shown only while earthquakes are on). At ≤1024px the sidebar becomes an off-canvas drawer opened by `#sidebar-toggle` and closed by `#sidebar-backdrop`.
 - **Earthquake 3D view**: `setEarthquakes3D()` switches to satellite + globe + pitch 55 and hides the circle layer. Spheres are drawn every frame (`map.on('render')`) on a 2D canvas overlay (`.eq3d-canvas`) by `drawQuakeSpheres()`: shaded, semi-transparent (`EQ3D_OPACITY`), back-to-front, with a stem to the ground point. Height = depth relative to the deepest quake (max 1000 km), radius = magnitude. Screen radius matches the 2D magnitude scale through zoom 2, doubles at zoom 5, and grows smoothly to a maximum of 3x for close-up views; drawing, picking, and popup offsets share this radius. Positions come from MapLibre's internal `map.transform.locationToScreenPoint(lngLat, fakeTerrain)` (fake terrain supplies the altitude); `pickQuakeSphere()` reuses them for hover/click. Not fill-extrusion: it renders as stepped discs and transparent extrusions hide anything behind them.
 - **Earthquake hover tag** (`.quake-tooltip`): magnitude + depth, background uses the same depth colour as the circle/sphere (`getDepthColor()`).
-- **Base Map Switcher** (`#basemap-switcher`): Bottom-centre pill of buttons (Satellite, Streets, Topo, Ocean). Re-centres in the visible map area when the profile panel is open (`.shifted`).
-- **Profile Panel** (`.profile-panel`): Right side, slides in. 4 tabs: Overview, Weather, Air Quality, Sun Chart. Fixed header with flag + title + coords/elevation. Overview tab includes compass button for sun direction lines. Closing it (× or Esc) also removes the location marker and clears the URL hash (`clearSelectedLocation()`).
-- **EQ Panel** (`#eq-new-panel`): Bottom-left, glassy, collapsible. Shows recent/new earthquakes with magnitude badges. Animated red border pulse when new quakes arrive. Desktop notifications for new earthquakes.
-- **Coords Display** (`#coords-display`): Bottom-left, shows lat/lng on mouse move.
-- **Attribution** (`#data-attribution`): Bottom-right, links to data sources (including RainViewer and GEBCO).
+- **Profile Panel** (`.profile-panel`): Docked to the right edge of the map area between header and footer (not floating), slides in, light card styling. 4 tabs: Overview, Weather, Air Quality, Sun Chart. Fixed header with flag + title + coords/elevation. Overview tab includes compass button for sun direction lines. Closing it (× or Esc) also removes the location marker and clears the URL hash (`clearSelectedLocation()`). At ≤768px it becomes a full-width bottom sheet.
+- **EQ Panel** (`#eq-new-panel`): Bottom-left of the map, white card, collapsible. Shows recent/new earthquakes with magnitude badges. Animated red border pulse when new quakes arrive. Desktop notifications for new earthquakes.
+- **Footer** (`.app-footer`): live cursor coordinates (`#coords-display`, `N/S E/W` format), data attribution links (`#data-attribution`), and copyright.
 
 ### URL Hash
 Format: `#lat,lng` (e.g. `#51.50735,-0.12776`). On load, if hash exists, map flies there and triggers `handleMapClick`.
@@ -150,11 +152,12 @@ Format: `#lat,lng` (e.g. `#51.50735,-0.12776`). On load, if hash exists, map fli
 
 ## 8. CSS Conventions
 
-- Custom properties in `:root` for colors, spacing, transitions
-- Glass effect: `background: rgba(15, 23, 42, 0.55)` + `backdrop-filter: blur(20px)`
+- Light theme: custom properties in `:root` (white surfaces, `--border`, teal `--accent` #0d8a7c, `--accent-soft`, `--text`/`--text-muted`), matching the country popup palette
+- Layer toggles are native checkboxes styled as switches (`.switch`); layer icon tiles use `.tint-*` classes
 - Animations: `fadeSlideDown`, `fadeSlideUp`, `fadeIn`, `spin`, `pulse`, `eqBorderPulse`, `eqItemSlideIn`
 - All popup styling overrides MapLibre defaults via `.maplibregl-popup-content`, `.maplibregl-popup-close-button`, etc.
-- Responsive breakpoints: 768px (panel goes to bottom 70vh), 480px (simplify grids)
+- Sun chart canvas colours are hard-coded for the light theme in `sun-chart.js` (with matching legend/stat colours in `ui.js`)
+- Responsive breakpoints: 1100px (narrower panel), 1024px (sidebar → drawer), 768px (profile panel → bottom sheet, compact header, attribution hidden), 480px (search hidden, simplified grids)
 
 ---
 
