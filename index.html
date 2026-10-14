@@ -46,12 +46,20 @@
         </label>
         <label class="layer-option">
           <input type="checkbox" id="ol-earthquakes">
-          <span class="layer-label">🔴 Earthquakes (7 days)</span>
+          <span class="layer-label">🔴 Earthquakes</span>
           <span id="eq-meta" class="eq-meta hidden">
             <span id="eq-timestamp" class="eq-timestamp"></span>
             <button id="eq-refresh" class="eq-refresh-btn" title="Refresh now">🔄</button>
           </span>
         </label>
+        <div class="layer-option layer-sub eq-period-option">
+          <label for="eq-period">Time range</label>
+          <select id="eq-period" aria-label="Earthquake time range">
+            <option value="day">Recent (24 hours)</option>
+            <option value="week" selected>Last week</option>
+            <option value="month">Last month</option>
+          </select>
+        </div>
         <label class="layer-option layer-sub hidden" id="eq-3d-option" title="Show earthquakes as spheres above the globe: height = depth, size = magnitude">
           <input type="checkbox" id="ol-earthquakes-3d">
           <span class="layer-label">🔮 3D depth view</span>

@@ -346,6 +346,17 @@ body {
 .layer-option.hidden { display: none; }
 .layer-sub { padding-left: 30px; font-size: 12px; }
 .layer-label { user-select: none; }
+.eq-period-option { cursor: default; }
+.eq-period-option select {
+  margin-left: auto;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-deep);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
 
 /* ---------- Profile Panel ---------- */
 .profile-panel {
