@@ -357,7 +357,7 @@ body {
   inset: 0;
   z-index: 0;
 }
-#map.is-globe { background: #0b1220; }
+#map.is-globe { background: #000; }
 
 .maplibregl-ctrl-attrib { font-size: 11px !important; }
 .maplibregl-ctrl-bottom-right { transition: right var(--transition); }
