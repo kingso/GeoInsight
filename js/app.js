@@ -711,6 +711,7 @@ function setupOverlayControls() {
   const eqPeriod = document.getElementById('eq-period');
   const eq3dOption = document.getElementById('eq-3d-option');
   const eq3dToggle = document.getElementById('ol-earthquakes-3d');
+  const eqPeriodOption = document.querySelector('.eq-period-option');
 
   eq3dToggle?.addEventListener('change', () => setEarthquakes3D(eq3dToggle.checked));
 
@@ -740,6 +741,7 @@ function setupOverlayControls() {
 
   earthquakeToggle?.addEventListener('change', async () => {
     if (earthquakeToggle.checked) {
+      eqPeriodOption?.classList.remove('hidden');
       // Request notification permission when EQ mode is activated
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();
@@ -760,6 +762,7 @@ function setupOverlayControls() {
         } catch (err) {
           console.error('Failed to load earthquakes:', err);
           earthquakeToggle.checked = false;
+          eqPeriodOption?.classList.add('hidden');
           return;
         }
       }
@@ -773,6 +776,7 @@ function setupOverlayControls() {
         setEarthquakes3D(false);
       }
       eq3dOption?.classList.add('hidden');
+      eqPeriodOption?.classList.add('hidden');
       map.setLayoutProperty('earthquakes-circle', 'visibility', 'none');
       stopEqAutoRefresh();
       eqMeta?.classList.add('hidden');
