@@ -136,11 +136,8 @@ function initMap() {
       `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}   ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
   });
 
-  // Dismiss hint on first click
-  map.once('click', () => {
-    document.getElementById('click-hint')?.classList.add('hidden');
-    setTimeout(() => document.getElementById('click-hint')?.remove(), 600);
-  });
+  // Dismiss hint on first click (or first search selection)
+  map.once('click', dismissClickHint);
 
   // Load earthquake source when map is ready (but don't show layer yet)
   map.on('load', () => {
@@ -608,7 +605,11 @@ async function handleMapClick(e) {
     return;
   }
 
-  const { lat, lng } = e.lngLat;
+  await selectLocation(e.lngLat.lat, e.lngLat.lng);
+}
+
+// ── Open Location Profile ───────────────────────────────
+async function selectLocation(lat, lng) {
   const request = ++locationRequest;
   currentLat = lat;
   currentLng = lng;
@@ -1006,9 +1007,41 @@ function setupLayerPanel() {
   toggle?.addEventListener('click', () => setOpen(!sidebar.classList.contains('open')));
   backdrop?.addEventListener('click', () => setOpen(false));
   matchMedia('(min-width: 1025px)').addEventListener('change', (e) => { if (e.matches) setOpen(false); });
+}
 
-  // Search is visual-only for now
-  document.querySelector('.header-search')?.addEventListener('submit', (e) => e.preventDefault());
+// ── Place Search (Stadia Maps) ──────────────────────────
+function dismissClickHint() {
+  const hint = document.getElementById('click-hint');
+  if (!hint) return;
+  hint.classList.add('hidden');
+  setTimeout(() => hint.remove(), 600);
+}
+
+function setupSearch() {
+  const host = document.getElementById('search-box');
+  if (!host || !window.maplibreSearchBox) return;
+
+  const control = new maplibreSearchBox.MapLibreSearchControl({
+    placeholder: 'Search for a city or place…',
+    useMapFocusPoint: true,
+    hideResultsOnBlur: true,
+    animationOptions: { duration: 1500 },
+    onResultSelected: (feature) => {
+      // Fires again without geometry after a place-details lookup; ignore that call
+      const coords = feature?.geometry?.coordinates;
+      if (!coords) return;
+      const [lng, lat] = coords;
+      document.querySelector('#search-box input')?.blur();
+      dismissClickHint();
+      selectLocation(lat, lng);
+    },
+  });
+
+  // Mount in the header instead of a map corner
+  host.appendChild(control.onAdd(map));
+  const input = host.querySelector('input');
+  input?.setAttribute('aria-label', 'Search for a city or place');
+  input?.setAttribute('autocomplete', 'off');
 }
 
 // ── Profile Panel Close ─────────────────────────────────
@@ -1687,6 +1720,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initTabs();
   setupLayerPanel();
+  setupSearch();
   setupProfilePanel();
   setupLogoHome();
 

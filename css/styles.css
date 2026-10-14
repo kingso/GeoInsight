@@ -100,6 +100,7 @@ body {
 }
 
 .header-search {
+  position: relative;
   flex: 1 1 auto;
   max-width: 460px;
   margin: 0 auto;
@@ -115,27 +116,82 @@ body {
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 .header-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
-.header-search input {
+.header-search .search-icon { flex: 0 0 auto; }
+
+/* Stadia Maps search control, mounted inside .header-search */
+.header-search .maplibre-search-box {
+  position: static;
   flex: 1;
   min-width: 0;
+  width: auto;
+  margin: 0;
+  float: none;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  pointer-events: auto;
+}
+.header-search .maplibre-search-box .input-container { position: relative; display: flex; align-items: center; }
+.header-search .maplibre-search-box .input-container input {
+  width: 100%;
+  height: 38px;
+  padding: 0 30px 0 0;
   border: none;
+  border-radius: 0;
   background: transparent;
   font: inherit;
   font-size: 13px;
   color: var(--text);
   outline: none;
+  box-sizing: border-box;
 }
-.header-search input::placeholder { color: var(--text-dim); }
-.header-search kbd {
-  font-family: inherit;
-  font-size: 11px;
-  line-height: 1;
-  padding: 4px 6px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
+.header-search .maplibre-search-box .input-container input::placeholder { color: var(--text-dim); }
+.header-search .maplibre-search-box .input-container .cancel,
+.header-search .maplibre-search-box .input-container .spinner { top: 50%; right: 2px; transform: translateY(-50%); }
+.header-search .maplibre-search-box .input-container .cancel { width: 18px; height: 18px; background: var(--text-dim); }
+.header-search .maplibre-search-box .input-container .cancel::before,
+.header-search .maplibre-search-box .input-container .cancel::after { top: 4px; left: 8px; }
+.header-search .maplibre-search-box .results {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  width: auto;
+  margin: 0;
+  z-index: 1000;
   background: var(--bg-panel);
-  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  color: var(--text);
 }
+.header-search .maplibre-search-box .results .result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.header-search .maplibre-search-box .results .result > div { min-width: 0; }
+.header-search .maplibre-search-box .results .result:hover,
+.header-search .maplibre-search-box .results .result.hover { background: var(--accent-soft); }
+.header-search .maplibre-search-box .results .no-result { color: var(--text-muted); }
+.header-search .maplibre-search-box .results .result-icon { float: none; flex: 0 0 auto; width: 18px; height: 18px; opacity: 0.6; }
+.header-search .maplibre-search-box .results .result-label { color: var(--text); font-weight: 600; }
+.header-search .maplibre-search-box .results .result-extra { color: var(--text-muted); font-style: normal; letter-spacing: 0.02em; }
+.header-search .maplibre-search-box .search-attribution {
+  border-top: 1px solid var(--border);
+  padding: 6px 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+}
+.header-search .maplibre-search-box .search-attribution .logo { width: 28px; height: 28px; top: 0; margin-right: 8px; }
+.header-search .maplibre-search-box .search-attribution a,
+.header-search .maplibre-search-box .search-attribution a:visited { color: var(--accent); }
 
 .view-toggle {
   flex: 0 0 auto;
@@ -1387,7 +1443,12 @@ body {
   .brand-text { display: none; }
   .logo-icon { font-size: 30px; }
   .header-search { min-width: 0; }
-  .header-search kbd { display: none; }
+  .header-search .maplibre-search-box .results {
+    position: fixed;
+    top: calc(var(--header-h) - 4px);
+    left: 8px;
+    right: 8px;
+  }
   .view-btn { padding: 6px 9px; font-size: 12px; }
   .view-btn svg { display: none; }
 
@@ -1413,8 +1474,9 @@ body {
 }
 
 @media (max-width: 480px) {
-  .header-search { display: none; }
-  .view-toggle { margin-left: auto; }
+  .app-header { gap: 8px; }
+  .header-search { padding: 0 6px 0 10px; gap: 6px; }
+  .header-search .search-icon { display: none; }
   .stats-grid { grid-template-columns: 1fr; }
   .sun-today { grid-template-columns: 1fr 1fr 1fr; }
   .forecast-day { width: 70px; }

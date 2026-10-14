@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GeoInsight — Earth Explorer</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
+  <link rel="stylesheet" href="https://unpkg.com/@stadiamaps/maplibre-search-box@3.2.0/dist/maplibre-search-box.css" />
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 </head>
@@ -25,11 +26,9 @@
       </span>
     </a>
 
-    <form class="header-search" role="search" title="Search coming soon">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="search" id="search-input" placeholder="Search for a city or place…" aria-label="Search for a city or place" autocomplete="off">
-      <kbd aria-hidden="true">↵</kbd>
-    </form>
+    <div id="search-box" class="header-search" role="search">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
 
     <div id="globe-toggle" class="view-toggle" role="group" aria-label="Map projection">
       <button type="button" class="view-btn active" data-view="2d" aria-pressed="true">2D Map</button>
@@ -226,6 +225,7 @@
 </div>
 
   <script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@stadiamaps/maplibre-search-box@3.2.0/dist/maplibre-search-box.umd.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

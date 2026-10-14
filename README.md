@@ -7,7 +7,12 @@ An interactive world map with layered data overlays and rich location profiles. 
 ## Features
 
 ### 🧩 Layout
-A light app shell with a header (logo, search box, 2D Map / 3D Globe toggle), an **Explore the Earth** sidebar (base maps, map layers, tools), the map, and a footer showing cursor coordinates and data attribution. The search box is visual only for now. On tablets and phones the sidebar becomes a slide-out drawer opened from the ☰ button, and on phones the location panel becomes a bottom sheet.
+A light app shell with a header (logo, place search, 2D Map / 3D Globe toggle), an **Explore the Earth** sidebar (base maps, map layers, tools), the map, and a footer showing cursor coordinates and data attribution. On tablets and phones the sidebar becomes a slide-out drawer opened from the ☰ button, and on phones the location panel becomes a bottom sheet.
+
+### 🔍 Place Search
+Type a city, address, or landmark into the header search box for autocomplete suggestions from [Stadia Maps](https://stadiamaps.com/) (via the [`@stadiamaps/maplibre-search-box`](https://github.com/stadiamaps/maplibre-search-box) plugin). Results near the current map view rank higher when zoomed in. Use the arrow keys and Enter, or click a result, to fly to it, drop a marker, and open its location profile.
+
+Search works without a key from `localhost` / `127.0.0.1` (rate-limited). Deployed sites need [domain-based authentication](https://docs.stadiamaps.com/authentication/#domain-based-authentication): in the Stadia Maps client dashboard, open **Manage Properties** and add the site's domain under **Authentication Configuration**. No API key goes in the code.
 
 ### 🗺️ Base Maps
 Switch between four base map styles using the thumbnail cards in the sidebar:
@@ -79,14 +84,14 @@ Then open [http://localhost:8080](http://localhost:8080).
 |---|---|
 | **Map Engine** | [MapLibre GL JS v5](https://maplibre.org/) |
 | **Languages** | Vanilla HTML, CSS, JavaScript (ES modules) |
-| **APIs** | Open-Meteo, USGS, NOAA NDBC, Nominatim, RainViewer, flagcdn |
+| **APIs** | Open-Meteo, USGS, NOAA NDBC, Nominatim, Stadia Maps, RainViewer, flagcdn |
 | **Build** | None — served directly from source |
 
 ---
 
 ## APIs Used
 
-All APIs are **free and require no API keys**.
+All APIs are **free and require no API keys**. Stadia Maps search needs a free account with the site's domain registered for production use (see [Place Search](#-place-search)).
 
 | API | Purpose |
 |-----|---------|
@@ -95,6 +100,7 @@ All APIs are **free and require no API keys**.
 | [NOAA NDBC](https://www.ndbc.noaa.gov/) | Marine buoy observations |
 | [OpenTopoData](https://www.opentopodata.org/) | Ocean depth (GEBCO 2020) for water clicks |
 | [Nominatim](https://nominatim.openstreetmap.org/) | Reverse geocoding |
+| [Stadia Maps](https://stadiamaps.com/) | Place search autocomplete |
 | [RainViewer](https://www.rainviewer.com/) | Rain radar tiles |
 | [flagcdn.com](https://flagcdn.com/) | Country flag images |
 

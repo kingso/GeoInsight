@@ -39,6 +39,7 @@ geo-overlay/
 |---|---|
 | **Map** | MapLibre GL v5 (CDN: `unpkg.com/maplibre-gl@5`). **IMPORTANT:** v5 uses **promise-based APIs** — e.g. `getClusterExpansionZoom()` returns a Promise, do NOT use callbacks. v5 also supports globe projection (`map.setProjection({ type: 'globe' })`). |
 | **Base maps** | Satellite (Esri, default), Streets (OSM), Topo (OpenTopoMap), Ocean (GEBCO/NCEI) — all raster tile sources defined in `app.js` |
+| **Search** | `@stadiamaps/maplibre-search-box@3.2.0` UMD build + CSS from unpkg (global `maplibreSearchBox`). `setupSearch()` calls `control.onAdd(map)` itself and mounts the element in the header instead of `map.addControl()`. CSS sets `transform: none` on it because `.maplibregl-ctrl`'s transform would otherwise trap the `position: fixed` mobile results list |
 | **JS modules** | ES modules via `<script type="module">`. `app.js` is the entry point importing from `api.js`, `ui.js`, `sun-chart.js` |
 | **CSS** | Single `styles.css`, light theme via CSS custom properties in `:root`, CSS grid app shell |
 | **No framework** | Pure vanilla JS, no React/Vue/Svelte/etc. |
@@ -55,6 +56,7 @@ geo-overlay/
 | **USGS Earthquakes** | `earthquake.usgs.gov/.../2.5_{day,week,month}.geojson` | M2.5+ earthquakes (past 24 hours, week, or month). Properties: `mag`, `place`, `time`, `alert`, `felt`, `cdi`, `tsunami`, `url` |
 | **NOAA NDBC Buoys** | `ndbc.noaa.gov/data/latest_obs/latest_obs.txt` | Marine buoy observations (via same-origin Cloudflare Worker `worker/index.js` → `/api/buoys`). Fixed-width text parsed into GeoJSON |
 | **Nominatim** | `nominatim.openstreetmap.org/reverse` | Reverse geocoding → place name + `country_code` |
+| **Stadia Maps** | `api.stadiamaps.com` autocomplete / search / place details (via plugin) | Header place search. Keyless from localhost; production uses domain-based auth configured in the Stadia dashboard (Manage Properties → Authentication Configuration). `onResultSelected` fires twice when a place-details lookup is needed (second call has no geometry), so the handler ignores features without coordinates and then calls `selectLocation(lat, lng)` |
 | **flagcdn.com** | `flagcdn.com/24x18/{cc}.png` | Country flag images (Windows doesn't support flag emoji via regional indicators) |
 | **RainViewer** | `api.rainviewer.com/public/weather-maps.json` | Real-time rain/weather radar tile timestamps. Tiles served from `tilecache.rainviewer.com` |
 | **Tectonic Plates** | `raw.githubusercontent.com/.../PB2002_boundaries.json` | Peter Bird PB2002 plate boundary GeoJSON (cached after first fetch) |
@@ -137,7 +139,7 @@ When elevation is negative (ocean/sea locations), the Overview tab shows "Depth"
 A CSS grid app shell (`.app`) with four areas: header, left sidebar, map (`.map-area`, which contains `#map` and the map overlays), and footer. MapLibre resizes automatically when the grid changes.
 
 ### Panels & Controls
-- **Header** (`.app-header`): logo/home button (`#logo-home`; click resets map view, removes marker, clears hash, closes panel/popups), a visual-only search box (`.header-search`, submit is prevented), and the 2D Map / 3D Globe segmented control (`#globe-toggle`).
+- **Header** (`.app-header`): logo/home button (`#logo-home`; click resets map view, removes marker, clears hash, closes panel/popups), a place search box (`#search-box.header-search`, see below), and the 2D Map / 3D Globe segmented control (`#globe-toggle`).
 - **Sidebar** (`#sidebar`): "Explore the Earth". Sections: **Base map**, a 2×2 grid of thumbnail cards (`#basemap-switcher .basemap-option[data-base]`, with static images in `img/basemaps/`); **Map layers**, rows with tinted icons, titles, subtitles, and toggle switches (`input.switch`, IDs `ol-*`) for Country labels (nested US States row), Earthquakes, Tectonic plates, Day & night, Rain radar, NOAA buoys, and Bathymetry; **Tools**, with Measure distance. Earthquakes has nested rows for the time range (`#eq-period`, which also updates `#eq-desc`), timestamp + refresh (`#eq-meta`), and "3D depth view" (`#ol-earthquakes-3d`, shown only while earthquakes are on). At ≤1024px the sidebar becomes an off-canvas drawer opened by `#sidebar-toggle` and closed by `#sidebar-backdrop`.
 - **Earthquake 3D view**: `setEarthquakes3D()` switches to satellite + globe + pitch 55 and hides the circle layer. Spheres are drawn every frame (`map.on('render')`) on a 2D canvas overlay (`.eq3d-canvas`) by `drawQuakeSpheres()`: shaded, semi-transparent (`EQ3D_OPACITY`), back-to-front, with a stem to the ground point. Height = depth relative to the deepest quake (max 1000 km), radius = magnitude. Screen radius matches the 2D magnitude scale through zoom 2, doubles at zoom 5, and grows smoothly to a maximum of 3x for close-up views; drawing, picking, and popup offsets share this radius. Positions come from MapLibre's internal `map.transform.locationToScreenPoint(lngLat, fakeTerrain)` (fake terrain supplies the altitude); `pickQuakeSphere()` reuses them for hover/click. Not fill-extrusion: it renders as stepped discs and transparent extrusions hide anything behind them.
 - **Earthquake hover tag** (`.quake-tooltip`): magnitude + depth, background uses the same depth colour as the circle/sphere (`getDepthColor()`).
@@ -157,7 +159,7 @@ Format: `#lat,lng` (e.g. `#51.50735,-0.12776`). On load, if hash exists, map fli
 - Animations: `fadeSlideDown`, `fadeSlideUp`, `fadeIn`, `spin`, `pulse`, `eqBorderPulse`, `eqItemSlideIn`
 - All popup styling overrides MapLibre defaults via `.maplibregl-popup-content`, `.maplibregl-popup-close-button`, etc.
 - Sun chart canvas colours are hard-coded for the light theme in `sun-chart.js` (with matching legend/stat colours in `ui.js`)
-- Responsive breakpoints: 1100px (narrower panel), 1024px (sidebar → drawer), 768px (profile panel → bottom sheet, compact header, attribution hidden), 480px (search hidden, simplified grids)
+- Responsive breakpoints: 1100px (narrower panel), 1024px (sidebar → drawer), 768px (profile panel → bottom sheet, compact header, attribution hidden), 480px (search icon hidden, simplified grids). At ≤768px the search results list is `position: fixed` full-width under the header
 
 ---
 
@@ -198,7 +200,6 @@ d8b2846 Initial commit: GeoInsight Earth Explorer
 ## 11. What's Been Discussed But Not Yet Built
 
 See `FEATURE-IDEAS.md` for a full list. Key remaining items:
-- Geocoding search bar
 - Distance/area measurement tool
 - ISS tracker
 - Population density heatmaps
